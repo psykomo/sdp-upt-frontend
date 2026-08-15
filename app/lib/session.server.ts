@@ -111,6 +111,68 @@ export async function apiGet<T>(token: string, path: string, request?: Request):
   return body.data as T;
 }
 
+export type ApiFail = {
+  ok: false;
+  status: number;
+  message: string;
+  errors: Record<string, string>;
+};
+
+export async function apiPutJson<T>(
+  token: string,
+  path: string,
+  payload: unknown,
+  request?: Request,
+): Promise<T | ApiFail> {
+  const res = await fetch(`${apiBase()}/api/v1${path}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...publicHeaders(request),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.status === 401) {
+    throw redirect("/login");
+  }
+
+  const body = (await res.json()) as {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string>;
+    data?: T;
+  };
+
+  if (!res.ok || !body.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      message: body.message ?? "Permintaan API gagal.",
+      errors: body.errors ?? {},
+    };
+  }
+
+  return body.data as T;
+}
+
+export async function fileToPayload(
+  file: File | null,
+): Promise<{ filename: string; mime: string; base64: string } | null> {
+  if (!file || file.size === 0) {
+    return null;
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return {
+    filename: file.name,
+    mime: file.type,
+    base64: buffer.toString("base64"),
+  };
+}
+
 export async function apiLogin(username: string, password: string, request?: Request) {
   const res = await fetch(`${apiBase()}/api/v1/auth/login`, {
     method: "POST",

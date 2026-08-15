@@ -208,10 +208,10 @@ export default function IdentitasDetailPage({ loaderData }: Route.ComponentProps
         <div className="hero-actions-section">
           <div className="hero-action-buttons">
             {access.canWrite ? (
-              <a href={d.links.ubah} className="btn btn-primary">
+              <Link to={`/identitas/${d.nomorInduk}/ubah`} className="btn btn-primary">
                 <Icon name="edit" size={14} />
                 <span>Ubah Data</span>
-              </a>
+              </Link>
             ) : null}
 
             {access.canDelete ? (

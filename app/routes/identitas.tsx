@@ -726,14 +726,14 @@ function ActionMenu({ item, access }: { item: IdentityItem; access: Access }) {
       </Link>
 
       {access.canWrite ? (
-        <a
-          href={item.links.ubah}
+        <Link
+          to={`/identitas/${item.nomorInduk}/ubah`}
           className="btn-action-secondary"
           title="Ubah data identitas WBP"
         >
           <Icon name="edit" size={13} />
           <span>Ubah</span>
-        </a>
+        </Link>
       ) : null}
 
       <button
@@ -1121,10 +1121,10 @@ function AnalisaDossier({
           </Link>
 
           {access.canWrite ? (
-            <a href={item.links.ubah} className="btn btn-secondary">
+            <Link to={`/identitas/${item.nomorInduk}/ubah`} className="btn btn-secondary">
               <Icon name="edit" size={15} />
               <span>Ubah Identitas</span>
-            </a>
+            </Link>
           ) : null}
 
           {access.canDelete ? (
