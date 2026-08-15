@@ -1531,9 +1531,9 @@ input[type="checkbox"] {
 }
 
 .status-verified {
-  border: 1px solid rgba(0, 173, 31, 0.4);
-  color: #71ed82;
-  background: rgba(0, 173, 31, 0.12);
+  border: 1px solid var(--badge-success-border);
+  color: var(--badge-success-text);
+  background: var(--badge-success-bg);
 }
 
 .status-unverified {
@@ -3852,6 +3852,19 @@ input[type="checkbox"] {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   }
 
+  .hero-avatar-frame {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .hero-avatar-placeholder {
+    background: #f1f5f9;
+  }
+
+  .hero-placeholder-label {
+    color: #64748b;
+  }
+
   .hero-wbp-name {
     color: #0f172a;
   }
@@ -4032,80 +4045,797 @@ input[type="checkbox"] {
   }
 }
 
-.form-field {
+/* -------------------------------------------------------------
+ * 12. Form Ubah Identitas Modern System
+ * ------------------------------------------------------------- */
+.ubah-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ubah-form .content-card[hidden] {
+  display: none;
+}
+
+.form-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 0 0 20px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.1);
+}
+
+.form-alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-alert-content strong {
+  color: #fecaca;
+  font-size: 13.5px;
+}
+
+.form-alert-content p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #fca5a5;
+}
+
+.form-section-group {
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.form-section-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--text-title);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.form-section-hint {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.form-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.col-span-full {
+  grid-column: 1 / -1;
+}
+
+.form-group-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
 }
 
-.form-field-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-muted, #9aa8b8);
+.form-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.form-control {
+.form-field-label-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.text-required-mark {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.form-field-error-msg {
+  color: #f87171;
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.form-field-helper-txt {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* Locked / Readonly Field */
+.locked-field-input-box {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-card);
+  background: var(--field-bg);
+}
+
+.monospace-locked-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0284c7;
+  letter-spacing: 0.04em;
+}
+
+.locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Form Controls */
+.form-modern-input,
+.form-modern-textarea,
+.form-modern-select {
   width: 100%;
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: 40px;
+  padding: 9px 12px;
   border: 1px solid var(--input-border);
   border-radius: 8px;
   background: var(--input-bg);
-  color: inherit;
-  font: inherit;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.form-control:focus {
-  outline: 2px solid color-mix(in srgb, var(--color-gold, #c9a227) 50%, transparent);
-  outline-offset: 1px;
+.form-modern-input::placeholder,
+.form-modern-textarea::placeholder {
+  color: var(--text-dim);
 }
 
-textarea.form-control {
-  min-height: 84px;
+.form-modern-input:focus,
+.form-modern-textarea:focus,
+.form-modern-select:focus {
+  border-color: #0284c7;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(2, 72, 131, 0.25);
+}
+
+.form-modern-input.has-input-error,
+.form-modern-textarea.has-input-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.form-modern-input:disabled,
+.form-modern-textarea:disabled,
+.form-modern-select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: var(--field-bg);
+}
+
+.form-modern-textarea {
+  min-height: 86px;
+  line-height: 1.5;
   resize: vertical;
 }
 
-.form-field-error {
-  color: #f87171;
-  font-size: 12px;
+.select-wrapper-styled {
+  position: relative;
 }
 
-.form-check {
+.form-modern-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 36px;
+}
+
+.select-wrapper-styled::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* Checkbox Cards */
+.form-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.checkbox-card-box {
+  position: relative;
   display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--field-bg);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.checkbox-card-box:hover {
+  border-color: var(--border-card);
+  background: var(--bg-hover);
+}
+
+.checkbox-card-box.is-checked {
+  border-color: #0284c7;
+  background: rgba(2, 72, 131, 0.15);
+}
+
+.custom-checkbox-indicator {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-card);
+  border-radius: 5px;
+  background: var(--input-bg);
+  color: #fff;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.checkbox-card-box.is-checked .custom-checkbox-indicator {
+  background: #0284c7;
+  border-color: #0284c7;
+}
+
+.checkbox-text-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.checkbox-main-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.checkbox-sub-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Ciri Khusus Slots */
+.form-ciri-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ciri-slot-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--field-bg);
+  padding: 16px;
+}
+
+.ciri-slot-header {
+  margin-bottom: 12px;
+}
+
+.ciri-slot-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(2, 72, 131, 0.2);
+  border: 1px solid rgba(45, 142, 251, 0.35);
+  color: #8ac5ff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ciri-slot-body {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.ciri-preview-thumbnail {
+  width: 140px;
+  height: 140px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-card);
+  background: var(--frame-bg);
+}
+
+.ciri-img-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ciri-empty-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.ciri-fields-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btn-file-upload {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: fit-content;
 }
 
-.form-photo-preview {
-  width: 120px;
-  height: 160px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--input-border);
-  background: #111;
+.btn-file-upload:hover {
+  background: var(--bg-hover);
+  border-color: #0284c7;
+  color: #fff;
 }
 
-.form-alert {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid #7f1d1d;
-  background: rgba(127, 29, 29, 0.2);
-  color: #fecaca;
+/* Photo 4-Angle Upload Cards */
+.photo-angles-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
 }
 
-.ubah-actions {
+.photo-angle-upload-card {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
 }
 
-.ubah-form .content-card[hidden] {
-  display: none;
+.angle-card-top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
+
+.angle-title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.angle-badge-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.angle-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tag-required-pill {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.angle-photo-viewport {
+  width: 100%;
+  height: 240px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--frame-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.angle-img-rendered {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.angle-empty-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.angle-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--text-dim);
+}
+
+.angle-empty-txt {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.angle-upload-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-angle-upload-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card-alt);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-angle-upload-trigger:hover {
+  background: var(--bg-hover);
+  border-color: #0284c7;
+  color: #fff;
+}
+
+.selected-filename-tag {
+  font-size: 11px;
+  color: #8ac5ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.angle-error-msg {
+  color: #f87171;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* Biometric Notice Box */
+.biometric-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: rgba(2, 72, 131, 0.12);
+  border: 1px solid rgba(2, 72, 131, 0.35);
+  margin-bottom: 24px;
+}
+
+.notice-icon-box {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: rgba(2, 72, 131, 0.25);
+  color: #8ac5ff;
+  flex-shrink: 0;
+}
+
+.notice-text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice-text-content h4 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.notice-text-content p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Sticky Action Footer */
+.ubah-sticky-footer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  margin-top: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+}
+
+.footer-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-wbp-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.footer-id-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--field-bg);
+  border: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #0284c7;
+}
+
+.footer-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-save-action {
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -------------------------------------------------------------
+   LIGHT THEME OVERRIDES FOR UBAH FORM
+   ------------------------------------------------------------- */
+[data-theme="light"] {
+  .form-alert {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+  }
+
+  .form-alert-content strong {
+    color: #7f1d1d;
+  }
+
+  .form-alert-content p {
+    color: #991b1b;
+  }
+
+  .locked-field-input-box {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .monospace-locked-val {
+    color: #024883;
+  }
+
+  .locked-badge {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+
+  .form-modern-input,
+  .form-modern-textarea,
+  .form-modern-select {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .form-modern-input:focus,
+  .form-modern-textarea:focus,
+  .form-modern-select:focus {
+    border-color: #024883;
+    box-shadow: 0 0 0 3px rgba(2, 72, 131, 0.15);
+  }
+
+  .checkbox-card-box {
+    background: #ffffff;
+    border-color: #cbd5e1;
+  }
+
+  .checkbox-card-box:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+
+  .checkbox-card-box.is-checked {
+    background: #e0f2fe;
+    border-color: #0284c7;
+  }
+
+  .custom-checkbox-indicator {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .checkbox-card-box.is-checked .custom-checkbox-indicator {
+    background: #024883;
+    border-color: #024883;
+    color: #ffffff;
+  }
+
+  .ciri-slot-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+
+  .ciri-slot-badge {
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+    color: #0369a1;
+  }
+
+  .ciri-preview-thumbnail {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .btn-file-upload {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #024883;
+  }
+
+  .btn-file-upload:hover {
+    background: #f1f5f9;
+    color: #01315b;
+    border-color: #024883;
+  }
+
+  .photo-angle-upload-card {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+  }
+
+  .angle-photo-viewport {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .btn-angle-upload-trigger {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #024883;
+  }
+
+  .btn-angle-upload-trigger:hover {
+    background: #e2e8f0;
+    color: #01315b;
+  }
+
+  .selected-filename-tag {
+    color: #0369a1;
+  }
+
+  .biometric-notice-box {
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+  }
+
+  .notice-icon-box {
+    background: #bae6fd;
+    color: #0369a1;
+  }
+
+  .ubah-sticky-footer {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .footer-id-badge {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #024883;
+  }
+}
+
 
 
