@@ -8,6 +8,7 @@ export default [
     route("identitas", "routes/identitas.tsx"),
     route("identitas/export", "routes/identitas-export.ts"),
     route("identitas/:nomorInduk/ubah", "routes/identitas-ubah.tsx"),
+    route("identitas/:nomorInduk/hapus", "routes/identitas-hapus.tsx"),
     route("identitas/:nomorInduk", "routes/identitas-detail.tsx"),
   ]),
   route("auth/legacy", "routes/auth-legacy.ts"),

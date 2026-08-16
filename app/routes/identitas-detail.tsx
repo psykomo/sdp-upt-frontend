@@ -215,10 +215,10 @@ export default function IdentitasDetailPage({ loaderData }: Route.ComponentProps
             ) : null}
 
             {access.canDelete ? (
-              <a href={d.links.hapus} className="btn btn-danger-outline">
+              <Link to={`/identitas/${d.nomorInduk}/hapus`} className="btn btn-danger-outline">
                 <Icon name="trash" size={14} />
                 <span>Hapus</span>
-              </a>
+              </Link>
             ) : null}
           </div>
 

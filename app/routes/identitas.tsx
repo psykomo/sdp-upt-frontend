@@ -800,14 +800,14 @@ function ActionMenu({ item, access }: { item: IdentityItem; access: Access }) {
             <>
               <div className="dropdown-divider" />
               <div className="dropdown-section-title">Manajemen Data</div>
-              <a
-                href={item.links.hapus}
+              <Link
+                to={`/identitas/${item.nomorInduk}/hapus`}
                 className="dropdown-item text-danger"
                 onClick={() => setIsOpen(false)}
               >
                 <Icon name="trash" size={14} />
                 <span>Hapus Identitas</span>
-              </a>
+              </Link>
             </>
           ) : null}
         </div>,
@@ -1128,10 +1128,10 @@ function AnalisaDossier({
           ) : null}
 
           {access.canDelete ? (
-            <a href={item.links.hapus} className="btn btn-danger-outline">
+            <Link to={`/identitas/${item.nomorInduk}/hapus`} className="btn btn-danger-outline">
               <Icon name="trash" size={15} />
               <span>Hapus Data</span>
-            </a>
+            </Link>
           ) : null}
         </div>
 

@@ -8,6 +8,33 @@ export const tokenCookie = createCookie("sdp_token", {
   secrets: [process.env.SESSION_SECRET ?? "sdp-frontend-dev-secret"],
 });
 
+export const hapusGrantCookie = createCookie("sdp_hapus_grant", {
+  httpOnly: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 10 * 60,
+  secrets: [process.env.SESSION_SECRET ?? "sdp-frontend-dev-secret"],
+});
+
+export type HapusGrant = {
+  grant: string;
+  officerId: string;
+  nomorInduk: string;
+  supervisorName: string;
+};
+
+export async function getHapusGrant(request: Request): Promise<HapusGrant | null> {
+  const value = await hapusGrantCookie.parse(request.headers.get("Cookie"));
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const grant = value as HapusGrant;
+  if (!grant.grant || !grant.officerId || !grant.nomorInduk) {
+    return null;
+  }
+  return grant;
+}
+
 const PUBLIC_LEGACY_HOST = process.env.PUBLIC_LEGACY_HOST ?? "sdp.caripasal.com";
 const PUBLIC_API_HOST = process.env.PUBLIC_API_HOST ?? "sdp-api.caripasal.com";
 const PUBLIC_FRONTEND_HOST = process.env.PUBLIC_FRONTEND_HOST ?? "sdp-front.caripasal.com";
@@ -137,6 +164,121 @@ export type ApiFail = {
   message: string;
   errors: Record<string, string>;
 };
+
+export async function apiPostJson<T>(
+  token: string,
+  path: string,
+  payload: unknown,
+  request?: Request,
+): Promise<T | ApiFail> {
+  let res: Response;
+  try {
+    res = await fetchApi(`${apiBase()}/api/v1${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...publicHeaders(request),
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (error instanceof Response && error.status === 503) {
+      return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+    }
+    throw error;
+  }
+
+  if (res.status === 401) {
+    throw redirect("/login");
+  }
+
+  let body: {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string>;
+    data?: T;
+  };
+  try {
+    body = (await res.json()) as {
+      ok: boolean;
+      message?: string;
+      errors?: Record<string, string>;
+      data?: T;
+    };
+  } catch {
+    return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+  }
+
+  if (!res.ok || !body.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      message: body.message ?? "Permintaan API gagal.",
+      errors: body.errors ?? {},
+    };
+  }
+
+  return body.data as T;
+}
+
+export async function apiDeleteJson<T>(
+  token: string,
+  path: string,
+  request?: Request,
+  grant?: string,
+): Promise<T | ApiFail> {
+  let res: Response;
+  try {
+    res = await fetchApi(`${apiBase()}/api/v1${path}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        ...(grant ? { "X-SDP-Supervisor-Grant": grant } : {}),
+        ...publicHeaders(request),
+      },
+    });
+  } catch (error) {
+    if (error instanceof Response && error.status === 503) {
+      return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+    }
+    throw error;
+  }
+
+  if (res.status === 401) {
+    throw redirect("/login");
+  }
+
+  let body: {
+    ok: boolean;
+    message?: string;
+    errors?: Record<string, string>;
+    data?: T;
+  };
+  try {
+    body = (await res.json()) as {
+      ok: boolean;
+      message?: string;
+      errors?: Record<string, string>;
+      data?: T;
+    };
+  } catch {
+    return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+  }
+
+  if (!res.ok || !body.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      message: body.message ?? "Permintaan API gagal.",
+      errors: body.errors ?? {},
+    };
+  }
+
+  return body.data as T;
+}
 
 export async function apiPutJson<T>(
   token: string,
