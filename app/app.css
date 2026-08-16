@@ -4931,5 +4931,367 @@ input[type="checkbox"] {
   }
 }
 
+/* -------------------------------------------------------------
+ * Hapus Identitas / Dual-Password Authorization Styles
+ * ------------------------------------------------------------- */
+.hapus-main-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+@media (max-width: 960px) {
+  .hapus-main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hapus-card {
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.hapus-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card-alt);
+}
+
+.hapus-card-header.header-danger {
+  border-bottom-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.1) 0%, var(--bg-card-alt) 100%);
+}
+
+.hapus-card-header.header-warning {
+  border-bottom-color: rgba(255, 186, 0, 0.25);
+  background: linear-gradient(180deg, rgba(255, 186, 0, 0.08) 0%, var(--bg-card-alt) 100%);
+}
+
+.hapus-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hapus-header-icon-box {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.hapus-header-icon-box.icon-warning {
+  background: rgba(255, 186, 0, 0.15);
+  border: 1px solid rgba(255, 186, 0, 0.35);
+  color: var(--color-gold);
+}
+
+.hapus-header-icon-box.icon-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.hapus-header-icon-box.icon-success {
+  background: rgba(0, 173, 31, 0.15);
+  border: 1px solid rgba(0, 173, 31, 0.35);
+  color: #4ade80;
+}
+
+.hapus-header-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hapus-header-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: 0.01em;
+}
+
+.hapus-header-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.hapus-card-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hapus-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.hapus-callout-warning {
+  background: rgba(255, 186, 0, 0.1);
+  border: 1px solid rgba(255, 186, 0, 0.3);
+  color: #fef08a;
+}
+
+.hapus-callout-danger {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.hapus-callout-success {
+  background: rgba(0, 173, 31, 0.12);
+  border: 1px solid rgba(0, 173, 31, 0.3);
+  color: #86efac;
+}
+
+.hapus-callout-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.hapus-callout-content strong {
+  color: #ffffff;
+  font-size: 13.5px;
+}
+
+.hapus-callout-content p {
+  margin: 0;
+}
+
+.hapus-summary-box {
+  padding: 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--field-bg);
+}
+
+.hapus-summary-title {
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hapus-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.btn-danger-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 22px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  border: 1px solid #ef4444;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-danger-action:hover,
+.btn-danger-action:focus-visible {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border-color: #f87171;
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-danger-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.hapus-protocol-card {
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.protocol-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card-alt);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.protocol-header h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.protocol-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.protocol-step-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.protocol-step-number {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(18, 101, 153, 0.25);
+  border: 1px solid rgba(45, 142, 251, 0.4);
+  color: #8ac5ff;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.protocol-step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.protocol-step-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.protocol-step-desc {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Light Theme Adapter for Hapus */
+[data-theme="light"] {
+  .hapus-card,
+  .hapus-protocol-card {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  }
+
+  .hapus-card-header,
+  .protocol-header {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+
+  .hapus-card-header.header-danger {
+    background: linear-gradient(180deg, #fee2e2 0%, #f8fafc 100%);
+    border-bottom-color: #fca5a5;
+  }
+
+  .hapus-card-header.header-warning {
+    background: linear-gradient(180deg, #fef3c7 0%, #f8fafc 100%);
+    border-bottom-color: #fde047;
+  }
+
+  .hapus-header-icon-box.icon-warning {
+    background: #fef3c7;
+    border-color: #fde047;
+    color: #b45309;
+  }
+
+  .hapus-header-icon-box.icon-danger {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
+  }
+
+  .hapus-header-icon-box.icon-success {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #16a34a;
+  }
+
+  .hapus-callout-warning {
+    background: #fef9c3;
+    border-color: #fde047;
+    color: #854d0e;
+  }
+
+  .hapus-callout-warning .hapus-callout-content strong {
+    color: #713f12;
+  }
+
+  .hapus-callout-danger {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+  }
+
+  .hapus-callout-danger .hapus-callout-content strong {
+    color: #7f1d1d;
+  }
+
+  .hapus-callout-success {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+  }
+
+  .hapus-callout-success .hapus-callout-content strong {
+    color: #14532d;
+  }
+
+  .hapus-summary-box {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+
+  .protocol-step-number {
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+    color: #0369a1;
+  }
+}
+
+
 
 
