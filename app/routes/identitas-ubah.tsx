@@ -1524,6 +1524,7 @@ function AmbilFotoButton({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const deviceIdRef = useRef("");
   const [open, setOpen] = useState(false);
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
@@ -1536,33 +1537,50 @@ function AmbilFotoButton({
     if (videoRef.current) videoRef.current.srcObject = null;
   };
 
+  const listCameras = async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videos = devices.filter((device) => device.kind === "videoinput" && device.deviceId);
+    setCameras(videos);
+    return videos;
+  };
+
   const startCamera = async (id?: string) => {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("Kamera hanya tersedia di HTTPS atau localhost.");
       return;
     }
 
+    const preferred = id || deviceIdRef.current;
     setError(null);
     stopCamera();
 
+    const videoConstraint = preferred
+      ? { deviceId: { exact: preferred }, width: { ideal: 640 }, height: { ideal: 480 } }
+      : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } };
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: id
-          ? { deviceId: { exact: id }, width: { ideal: 640 }, height: { ideal: 480 } }
-          : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraint });
+      } catch {
+        if (!preferred) throw new Error("camera");
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        });
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => undefined);
       }
 
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videos = devices.filter((device) => device.kind === "videoinput");
-      setCameras(videos);
-      const current = stream.getVideoTracks()[0]?.getSettings().deviceId ?? id ?? "";
-      if (current) setDeviceId(current);
+      await listCameras();
+      const current = stream.getVideoTracks()[0]?.getSettings().deviceId ?? preferred ?? "";
+      if (current) {
+        deviceIdRef.current = current;
+        setDeviceId(current);
+      }
     } catch {
       setError("Kamera tidak dapat dibuka. Izinkan akses kamera di peramban.");
     }
@@ -1577,9 +1595,17 @@ function AmbilFotoButton({
     }
 
     if (dialog && !dialog.open) dialog.showModal();
-    void startCamera();
+    void startCamera(deviceIdRef.current || undefined);
 
-    return () => stopCamera();
+    const onDeviceChange = () => {
+      void listCameras();
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
+
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
+      stopCamera();
+    };
   }, [open]);
 
   const snap = async () => {
@@ -1629,13 +1655,14 @@ function AmbilFotoButton({
           </button>
         </div>
         <video ref={videoRef} className="ambil-foto-video" autoPlay playsInline muted />
-        {cameras.length > 1 ? (
+        {cameras.length > 0 ? (
           <label className="ambil-foto-camera">
-            <span>Kamera</span>
+            <span>Sumber kamera</span>
             <select
-              value={deviceId}
+              value={cameras.some((camera) => camera.deviceId === deviceId) ? deviceId : cameras[0]?.deviceId ?? ""}
               onChange={(event) => {
                 const next = event.target.value;
+                deviceIdRef.current = next;
                 setDeviceId(next);
                 void startCamera(next);
               }}
