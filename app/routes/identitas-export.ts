@@ -1,10 +1,10 @@
-import { apiBase, publicRequestHost, requireToken } from "../lib/session.server";
+import { fetchApi, apiBase, publicRequestHost, requireToken } from "../lib/session.server";
 import type { Route } from "./+types/identitas-export";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const token = await requireToken(request);
   const url = new URL(request.url);
-  const res = await fetch(`${apiBase()}/api/v1/identitas/export?${url.searchParams.toString()}`, {
+  const res = await fetchApi(`${apiBase()}/api/v1/identitas/export?${url.searchParams.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "X-SDP-Public-Host": publicRequestHost(request),

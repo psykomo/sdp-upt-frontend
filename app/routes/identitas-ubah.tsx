@@ -1,5 +1,5 @@
 import { Form, Link, redirect, useActionData, useNavigation } from "react-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { apiGet, apiPutJson, fileToPayload, requireToken } from "../lib/session.server";
 import type { Route } from "./+types/identitas-ubah";
 
@@ -1078,7 +1078,7 @@ export default function IdentitasUbahPage({ loaderData }: Route.ComponentProps) 
           </div>
 
           <p className="form-section-hint">
-            Unggah foto identitas resmi WBP dengan pencahayaan jelas dan latar belakang standar UPT (format JPG/PNG).
+            Ambil foto dari kamera atau unggah berkas JPG/PNG. Foto disimpan saat Simpan.
           </p>
 
           <div className="photo-angles-upload-grid">
@@ -1421,6 +1421,7 @@ function CiriSlot({
   error?: string;
   disabled?: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(photoUrl ?? null);
   const [imgError, setImgError] = useState(false);
 
@@ -1475,10 +1476,17 @@ function CiriSlot({
           </Field>
 
           <div className="file-upload-input-row">
+            <AmbilFotoButton
+              inputRef={inputRef}
+              fileName={`ciri${num}.jpg`}
+              disabled={disabled}
+              className="btn-file-upload"
+            />
             <label className="btn-file-upload">
               <Icon name="upload" size={13} />
               <span>Unggah / Ganti Foto Ciri</span>
               <input
+                ref={inputRef}
                 type="file"
                 name={fileName}
                 accept="image/*"
@@ -1491,6 +1499,166 @@ function CiriSlot({
         </div>
       </div>
     </div>
+  );
+}
+
+function assignFileToInput(input: HTMLInputElement | null, file: File) {
+  if (!input) return;
+  const data = new DataTransfer();
+  data.items.add(file);
+  input.files = data.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function AmbilFotoButton({
+  inputRef,
+  fileName,
+  disabled,
+  className = "btn-angle-upload-trigger",
+}: {
+  inputRef: RefObject<HTMLInputElement | null>;
+  fileName: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [open, setOpen] = useState(false);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [deviceId, setDeviceId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
+  const startCamera = async (id?: string) => {
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setError("Kamera hanya tersedia di HTTPS atau localhost.");
+      return;
+    }
+
+    setError(null);
+    stopCamera();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: id
+          ? { deviceId: { exact: id }, width: { ideal: 640 }, height: { ideal: 480 } }
+          : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videos = devices.filter((device) => device.kind === "videoinput");
+      setCameras(videos);
+      const current = stream.getVideoTracks()[0]?.getSettings().deviceId ?? id ?? "";
+      if (current) setDeviceId(current);
+    } catch {
+      setError("Kamera tidak dapat dibuka. Izinkan akses kamera di peramban.");
+    }
+  };
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open) {
+      stopCamera();
+      if (dialog?.open) dialog.close();
+      return;
+    }
+
+    if (dialog && !dialog.open) dialog.showModal();
+    void startCamera();
+
+    return () => stopCamera();
+  }, [open]);
+
+  const snap = async () => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) {
+      setError("Gambar kamera belum siap.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas");
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+      if (!blob) throw new Error("blob");
+      assignFileToInput(inputRef.current, new File([blob], fileName, { type: "image/jpeg" }));
+      setOpen(false);
+    } catch {
+      setError("Gagal mengambil foto.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" className={className} disabled={disabled} onClick={() => setOpen(true)}>
+        <Icon name="camera" size={13} />
+        <span>Ambil Foto</span>
+      </button>
+      <dialog
+        ref={dialogRef}
+        className="ambil-foto-dialog"
+        onCancel={(event) => {
+          event.preventDefault();
+          setOpen(false);
+        }}
+      >
+        <div className="ambil-foto-header">
+          <h3>Ambil Foto</h3>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(false)}>
+            Tutup
+          </button>
+        </div>
+        <video ref={videoRef} className="ambil-foto-video" autoPlay playsInline muted />
+        {cameras.length > 1 ? (
+          <label className="ambil-foto-camera">
+            <span>Kamera</span>
+            <select
+              value={deviceId}
+              onChange={(event) => {
+                const next = event.target.value;
+                setDeviceId(next);
+                void startCamera(next);
+              }}
+            >
+              {cameras.map((camera, index) => (
+                <option key={camera.deviceId || String(index)} value={camera.deviceId}>
+                  {camera.label || `Kamera ${index + 1}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {error ? <p className="angle-error-msg">{error}</p> : null}
+        <div className="ambil-foto-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+            Batal
+          </button>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void snap()}>
+            Ambil Foto
+          </button>
+        </div>
+      </dialog>
+    </>
   );
 }
 
@@ -1511,6 +1679,7 @@ function PhotoUploadAngleCard({
   disabled?: boolean;
   required?: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [currentPreview, setCurrentPreview] = useState<string | null>(previewUrl ?? null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
@@ -1562,19 +1731,23 @@ function PhotoUploadAngleCard({
       </div>
 
       <div className="angle-upload-footer">
-        <label className="btn-angle-upload-trigger">
-          <Icon name="upload" size={13} />
-          <span>{currentPreview && !imgError ? "Ganti Foto" : "Pilih Berkas Foto"}</span>
-          <input
-            type="file"
-            name={angleKey}
-            accept="image/*"
-            disabled={disabled}
-            required={required && (!previewUrl || imgError)}
-            onChange={handleFile}
-            className="sr-only"
-          />
-        </label>
+        <div className="angle-upload-actions">
+          <AmbilFotoButton inputRef={inputRef} fileName={`${angleKey}.jpg`} disabled={disabled} />
+          <label className="btn-angle-upload-trigger">
+            <Icon name="upload" size={13} />
+            <span>{currentPreview && !imgError ? "Ganti Foto" : "Pilih Berkas"}</span>
+            <input
+              ref={inputRef}
+              type="file"
+              name={angleKey}
+              accept="image/*"
+              disabled={disabled}
+              required={required && (!previewUrl || imgError) && !selectedFileName}
+              onChange={handleFile}
+              className="sr-only"
+            />
+          </label>
+        </div>
         {selectedFileName ? (
           <span className="selected-filename-tag" title={selectedFileName}>
             {selectedFileName}

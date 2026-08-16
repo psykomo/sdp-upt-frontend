@@ -1718,14 +1718,14 @@ input[type="checkbox"] {
 
 .empty-title {
   margin: 0 0 6px;
-  color: #fff;
+  color: var(--text-title);
   font-size: 14px;
   font-weight: 600;
 }
 
 .empty-desc {
   margin: 0 0 14px;
-  color: var(--color-ink-muted);
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -4535,10 +4535,88 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
+.file-upload-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .angle-upload-footer {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.angle-upload-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.angle-upload-actions .btn-angle-upload-trigger {
+  flex: 1;
+}
+
+.ambil-foto-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+.ambil-foto-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.ambil-foto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ambil-foto-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-title);
+}
+
+.ambil-foto-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  background: #111;
+  object-fit: cover;
+}
+
+.ambil-foto-camera {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ambil-foto-camera select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card-alt);
+  color: var(--text-main);
+}
+
+.ambil-foto-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .btn-angle-upload-trigger {
@@ -4808,6 +4886,22 @@ input[type="checkbox"] {
   .btn-angle-upload-trigger:hover {
     background: #e2e8f0;
     color: #01315b;
+  }
+
+  .ambil-foto-dialog {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .ambil-foto-header h3 {
+    color: #0f172a;
+  }
+
+  .ambil-foto-camera select {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
   }
 
   .selected-filename-tag {

@@ -60,26 +60,40 @@ function publicHeaders(request?: Request): Record<string, string> {
   return host ? { "X-SDP-Public-Host": host } : {};
 }
 
+const API_UNAVAILABLE = "Layanan API tidak tersedia. Coba muat ulang halaman ini.";
+
+export async function fetchApi(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new Response(API_UNAVAILABLE, { status: 503 });
+  }
+}
+
 export async function acceptLegacyToken(token: string, request?: Request): Promise<string | null> {
   const trimmed = token.trim();
   if (!trimmed) {
     return null;
   }
 
-  const res = await fetch(`${apiBase()}/api/v1/auth/me`, {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${trimmed}`,
-      ...publicHeaders(request),
-    },
-  });
+  try {
+    const res = await fetchApi(`${apiBase()}/api/v1/auth/me`, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${trimmed}`,
+        ...publicHeaders(request),
+      },
+    });
 
-  if (!res.ok) {
+    if (!res.ok) {
+      return null;
+    }
+
+    const body = (await res.json()) as { ok?: boolean };
+    return body.ok ? trimmed : null;
+  } catch {
     return null;
   }
-
-  const body = (await res.json()) as { ok?: boolean };
-  return body.ok ? trimmed : null;
 }
 
 export function apiBase(): string {
@@ -91,7 +105,7 @@ export function legacyBase(): string {
 }
 
 export async function apiGet<T>(token: string, path: string, request?: Request): Promise<T> {
-  const res = await fetch(`${apiBase()}/api/v1${path}`, {
+  const res = await fetchApi(`${apiBase()}/api/v1${path}`, {
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
@@ -103,7 +117,13 @@ export async function apiGet<T>(token: string, path: string, request?: Request):
     throw redirect("/login");
   }
 
-  const body = (await res.json()) as { ok: boolean; message?: string; data?: T };
+  let body: { ok: boolean; message?: string; data?: T };
+  try {
+    body = (await res.json()) as { ok: boolean; message?: string; data?: T };
+  } catch {
+    throw new Response(API_UNAVAILABLE, { status: 503 });
+  }
+
   if (!res.ok || !body.ok) {
     throw new Response(body.message ?? "Permintaan API gagal.", { status: res.status });
   }
@@ -124,27 +144,45 @@ export async function apiPutJson<T>(
   payload: unknown,
   request?: Request,
 ): Promise<T | ApiFail> {
-  const res = await fetch(`${apiBase()}/api/v1${path}`, {
-    method: "PUT",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...publicHeaders(request),
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+  try {
+    res = await fetchApi(`${apiBase()}/api/v1${path}`, {
+      method: "PUT",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...publicHeaders(request),
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (error instanceof Response && error.status === 503) {
+      return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+    }
+    throw error;
+  }
 
   if (res.status === 401) {
     throw redirect("/login");
   }
 
-  const body = (await res.json()) as {
+  let body: {
     ok: boolean;
     message?: string;
     errors?: Record<string, string>;
     data?: T;
   };
+  try {
+    body = (await res.json()) as {
+      ok: boolean;
+      message?: string;
+      errors?: Record<string, string>;
+      data?: T;
+    };
+  } catch {
+    return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+  }
 
   if (!res.ok || !body.ok) {
     return {
@@ -174,21 +212,38 @@ export async function fileToPayload(
 }
 
 export async function apiLogin(username: string, password: string, request?: Request) {
-  const res = await fetch(`${apiBase()}/api/v1/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...publicHeaders(request),
-    },
-    body: JSON.stringify({ username, password }),
-  });
+  let res: Response;
+  try {
+    res = await fetchApi(`${apiBase()}/api/v1/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...publicHeaders(request),
+      },
+      body: JSON.stringify({ username, password }),
+    });
+  } catch (error) {
+    if (error instanceof Response) {
+      throw new Error(API_UNAVAILABLE);
+    }
+    throw error;
+  }
 
-  const body = (await res.json()) as {
+  let body: {
     ok: boolean;
     message?: string;
     data?: { token: string; user: Record<string, unknown> };
   };
+  try {
+    body = (await res.json()) as {
+      ok: boolean;
+      message?: string;
+      data?: { token: string; user: Record<string, unknown> };
+    };
+  } catch {
+    throw new Error(API_UNAVAILABLE);
+  }
 
   if (!res.ok || !body.ok || !body.data?.token) {
     throw new Error(body.message ?? "Login gagal.");

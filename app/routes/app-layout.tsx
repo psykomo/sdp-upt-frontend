@@ -1,4 +1,4 @@
-import { Form, Link, Outlet } from "react-router";
+import { Form, Link, Outlet, isRouteErrorResponse, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import { apiGet, requireToken } from "../lib/session.server";
 import type { Route } from "./+types/app-layout";
@@ -18,6 +18,49 @@ export async function loader({ request }: Route.LoaderArgs) {
   const token = await requireToken(request);
   const me = await apiGet<Me>(token, "/auth/me", request);
   return me;
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const location = useLocation();
+  const reloadHref = `${location.pathname}${location.search}`;
+  const unavailable = isRouteErrorResponse(error) && error.status === 503;
+  const message = isRouteErrorResponse(error)
+    ? String(error.data || error.statusText)
+    : "Terjadi kesalahan saat memuat halaman.";
+
+  return (
+    <div className="min-h-screen app-wrapper">
+      <header className="site-header">
+        <div className="header-main">
+          <a href="/identitas" className="brand" aria-label="SDP 4.0">
+            <span className="brand-mark">SDP</span>
+            <span className="brand-copy">
+              <strong>Sistem Database</strong>
+              <span>Pemasyarakatan · SDP 4.0</span>
+            </span>
+          </a>
+        </div>
+      </header>
+      <main className="modern-page-shell">
+        <div className="empty-state-box error-box">
+          <h3 className="empty-title">
+            {unavailable ? "API tidak tersedia" : "Gagal memuat halaman"}
+          </h3>
+          <p className="empty-desc">{message}</p>
+          <a
+            href={reloadHref}
+            className="btn btn-secondary"
+            onClick={(event) => {
+              event.preventDefault();
+              window.location.reload();
+            }}
+          >
+            Muat ulang
+          </a>
+        </div>
+      </main>
+    </div>
+  );
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
