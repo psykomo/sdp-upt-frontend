@@ -1,4 +1,4 @@
-import { Form, redirect, useActionData } from "react-router";
+import { Form, data, redirect, useNavigation } from "react-router";
 import { apiLogin, getToken, tokenCookie } from "../lib/session.server";
 import type { Route } from "./+types/login";
 
@@ -20,23 +20,28 @@ export async function action({ request }: Route.ActionArgs) {
   const returnTo = String(form.get("return") ?? "/identitas");
 
   try {
-    const data = await apiLogin(username, password, request);
+    const session = await apiLogin(username, password, request);
     const dest = returnTo.startsWith("/") ? returnTo : "/identitas";
     return redirect(dest, {
       headers: {
-        "Set-Cookie": await tokenCookie.serialize(data.token),
+        "Set-Cookie": await tokenCookie.serialize(session.token),
       },
     });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Login gagal.",
-    };
+    if (!(error instanceof Error)) {
+      throw error;
+    }
+    return data(
+      { error: error.message || "Login gagal." },
+      { status: 401 },
+    );
   }
 }
 
 export default function LoginPage({ loaderData, actionData }: Route.ComponentProps) {
-  const data = useActionData<typeof action>();
-  const error = data?.error ?? actionData?.error;
+  const navigation = useNavigation();
+  const submitting = navigation.state === "submitting";
+  const error = actionData?.error;
 
   return (
     <main className="login-shell">
@@ -78,8 +83,8 @@ export default function LoginPage({ loaderData, actionData }: Route.ComponentPro
               required
             />
           </label>
-          <button type="submit" className="primary-button login-submit">
-            Masuk
+          <button type="submit" className="primary-button login-submit" disabled={submitting}>
+            {submitting ? "Masuk…" : "Masuk"}
           </button>
         </Form>
       </section>

@@ -1,4 +1,4 @@
-import { createCookie, redirect } from "react-router";
+import { createCookie, data, redirect } from "react-router";
 
 export const tokenCookie = createCookie("sdp_token", {
   httpOnly: true,
@@ -48,7 +48,8 @@ export async function requireToken(request: Request): Promise<string> {
   const token = await getToken(request);
   if (!token) {
     const url = new URL(request.url);
-    throw redirect(`/login?return=${encodeURIComponent(url.pathname + url.search)}`);
+    const path = url.pathname.replace(/\.data$/, "");
+    throw redirect(`/login?return=${encodeURIComponent(path + url.search)}`);
   }
   return token;
 }
@@ -93,7 +94,7 @@ export async function fetchApi(url: string, init?: RequestInit): Promise<Respons
   try {
     return await fetch(url, init);
   } catch {
-    throw new Response(API_UNAVAILABLE, { status: 503 });
+    throw data(API_UNAVAILABLE, { status: 503 });
   }
 }
 
@@ -148,11 +149,11 @@ export async function apiGet<T>(token: string, path: string, request?: Request):
   try {
     body = (await res.json()) as { ok: boolean; message?: string; data?: T };
   } catch {
-    throw new Response(API_UNAVAILABLE, { status: 503 });
+    throw data(API_UNAVAILABLE, { status: 503 });
   }
 
   if (!res.ok || !body.ok) {
-    throw new Response(body.message ?? "Permintaan API gagal.", { status: res.status });
+    throw data(body.message ?? "Permintaan API gagal.", { status: res.status });
   }
 
   return body.data as T;
@@ -164,6 +165,28 @@ export type ApiFail = {
   message: string;
   errors: Record<string, string>;
 };
+
+export function isApiFail(value: unknown): value is ApiFail {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "ok" in value &&
+    (value as { ok?: unknown }).ok === false &&
+    "message" in value
+  );
+}
+
+export function failData(fail: ApiFail) {
+  return data(
+    {
+      ok: false as const,
+      status: fail.status,
+      message: fail.message,
+      errors: fail.errors,
+    },
+    { status: fail.status },
+  );
+}
 
 export async function apiPostJson<T>(
   token: string,
@@ -366,9 +389,6 @@ export async function apiLogin(username: string, password: string, request?: Req
       body: JSON.stringify({ username, password }),
     });
   } catch (error) {
-    if (error instanceof Response) {
-      throw new Error(API_UNAVAILABLE);
-    }
     throw error;
   }
 
@@ -384,7 +404,7 @@ export async function apiLogin(username: string, password: string, request?: Req
       data?: { token: string; user: Record<string, unknown> };
     };
   } catch {
-    throw new Error(API_UNAVAILABLE);
+    throw data(API_UNAVAILABLE, { status: 503 });
   }
 
   if (!res.ok || !body.ok || !body.data?.token) {

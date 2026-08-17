@@ -1,11 +1,13 @@
-import { Form, Link, redirect, useActionData, useNavigation, isRouteErrorResponse } from "react-router";
+import { Form, Link, data, redirect, useNavigation, isRouteErrorResponse } from "react-router";
 import { useState, type ReactNode } from "react";
 import {
   apiDeleteJson,
   apiGet,
   apiPostJson,
+  failData,
   getHapusGrant,
   hapusGrantCookie,
+  isApiFail,
   requireToken,
 } from "../lib/session.server";
 import type { Route } from "./+types/identitas-hapus";
@@ -32,8 +34,6 @@ type HapusPage = IdentityDetail & {
   supervisorOk: boolean;
   supervisorName: string | null;
 };
-type ActionResult = { ok: false; message: string };
-
 export function meta({ loaderData }: Route.MetaArgs) {
   const nama = loaderData?.namaLengkap ? ` — ${loaderData.namaLengkap}` : "";
   return [{ title: `Hapus Identitas${nama} — SDP 4.0` }];
@@ -48,7 +48,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   ]);
 
   if (!detail.access.canDelete) {
-    throw new Response("Mohon maaf anda tidak berhak menghapus data identitas.", { status: 403 });
+    throw data("Mohon maaf anda tidak berhak menghapus data identitas.", { status: 403 });
   }
 
   const stored = await getHapusGrant(request);
@@ -84,8 +84,8 @@ export async function action({ request, params }: Route.ActionArgs) {
       request,
     );
 
-    if (result && typeof result === "object" && "ok" in result && result.ok === false) {
-      return result satisfies ActionResult;
+    if (isApiFail(result)) {
+      return failData(result);
     }
 
     const issued = result as { grant: string; supervisor: { id: string; name: string } };
@@ -103,10 +103,10 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   const stored = await getHapusGrant(request);
   if (!stored || stored.nomorInduk !== noin) {
-    return {
-      ok: false as const,
-      message: "Halaman ini memerlukan autentikasi dari supervisor.",
-    };
+    return data(
+      { ok: false as const, message: "Halaman ini memerlukan autentikasi dari supervisor." },
+      { status: 403 },
+    );
   }
 
   const result = await apiDeleteJson<{ nomorInduk: string }>(
@@ -116,8 +116,8 @@ export async function action({ request, params }: Route.ActionArgs) {
     stored.grant,
   );
 
-  if (result && typeof result === "object" && "ok" in result && result.ok === false) {
-    return result satisfies ActionResult;
+  if (isApiFail(result)) {
+    return failData(result);
   }
 
   throw redirect(`/identitas?field=no_induk&q=${encodeURIComponent(noin)}&activeOnly=0`, {
@@ -132,9 +132,8 @@ function hasOpenPerkara(d: IdentityDetail): boolean {
   return berkas !== "" && berkas !== "-";
 }
 
-export default function IdentitasHapusPage({ loaderData }: Route.ComponentProps) {
+export default function IdentitasHapusPage({ loaderData, actionData }: Route.ComponentProps) {
   const d = loaderData;
-  const actionData = useActionData<ActionResult>();
   const navigation = useNavigation();
   const submitting = navigation.state === "submitting";
   const blocked = hasOpenPerkara(d);

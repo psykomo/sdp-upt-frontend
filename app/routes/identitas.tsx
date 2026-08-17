@@ -1,4 +1,4 @@
-import { Form, Link, useSearchParams } from "react-router";
+import { Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { apiGet, publicLegacyBase, requireToken } from "../lib/session.server";
@@ -103,9 +103,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   const params = url.searchParams;
 
   if (!params.has("field")) {
-    params.set("activeOnly", "1");
-    params.set("field", "nama");
-    params.set("mode", "grid");
+    const next = new URLSearchParams(params);
+    next.set("activeOnly", next.get("activeOnly") ?? "1");
+    next.set("field", "nama");
+    next.set("mode", next.get("mode") ?? "grid");
+    throw redirect(`/identitas?${next.toString()}`);
   }
 
   const [result, agama, pendidikan] = await Promise.all([
@@ -142,6 +144,8 @@ function qs(current: URLSearchParams, patch: Record<string, string | number | un
 export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
   const { result, agama, pendidikan, legacyBase } = loaderData;
   const [params] = useSearchParams();
+  const navigation = useNavigation();
+  const searching = navigation.state !== "idle";
 
   const field = lastParam(params, "field", "nama");
   const mode = lastParam(params, "mode", "grid");
@@ -258,9 +262,9 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary search-submit-btn">
+            <button type="submit" className="btn btn-primary search-submit-btn" disabled={searching}>
               <Icon name="search" size={15} />
-              <span>Cari Data</span>
+              <span>{searching ? "Mencari…" : "Cari Data"}</span>
             </button>
 
             <button

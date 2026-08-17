@@ -1,6 +1,6 @@
-import { Form, Link, redirect, useActionData, useNavigation } from "react-router";
+import { Form, Link, redirect, useNavigation } from "react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { apiGet, apiPutJson, fileToPayload, requireToken } from "../lib/session.server";
+import { apiGet, apiPutJson, failData, fileToPayload, isApiFail, requireToken } from "../lib/session.server";
 import type { Route } from "./+types/identitas-ubah";
 
 type LookupItem = { id: string; label: string; propinsiId?: string };
@@ -129,17 +129,16 @@ export async function action({ request, params }: Route.ActionArgs) {
     request,
   );
 
-  if (result && typeof result === "object" && "ok" in result && result.ok === false) {
-    return result;
+  if (isApiFail(result)) {
+    return failData(result);
   }
 
   throw redirect(`/identitas/${encodeURIComponent(params.nomorInduk)}`);
 }
 
-export default function IdentitasUbahPage({ loaderData }: Route.ComponentProps) {
+export default function IdentitasUbahPage({ loaderData, actionData }: Route.ComponentProps) {
   const d = loaderData;
   const v = d.values;
-  const actionData = useActionData<ActionResult>();
   const navigation = useNavigation();
   const saving = navigation.state === "submitting";
   const disabled = d.readOnly || saving;

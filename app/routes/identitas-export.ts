@@ -1,3 +1,4 @@
+import { data } from "react-router";
 import { fetchApi, apiBase, publicRequestHost, requireToken } from "../lib/session.server";
 import type { Route } from "./+types/identitas-export";
 
@@ -12,7 +13,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   });
 
   if (!res.ok) {
-    throw new Response("Gagal mengekspor data.", { status: res.status });
+    throw data("Gagal mengekspor data.", { status: res.status });
   }
 
   const filename =
