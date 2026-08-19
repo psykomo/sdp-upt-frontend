@@ -9,6 +9,7 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { PageLoading, SiteShell } from "./site-shell";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -72,12 +73,9 @@ export default function App() {
 
 export function HydrateFallback() {
   return (
-    <main className="modern-page-shell">
-      <div className="empty-state-box">
-        <h1 className="empty-title">Memuat SDP 4.0</h1>
-        <p className="empty-desc">Menyiapkan halaman…</p>
-      </div>
-    </main>
+    <SiteShell>
+      <PageLoading />
+    </SiteShell>
   );
 }
 

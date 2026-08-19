@@ -311,6 +311,12 @@ input[type="checkbox"] {
   min-height: 38px;
 }
 
+.primary-nav-links {
+  display: flex;
+  align-self: stretch;
+  align-items: stretch;
+}
+
 .nav-item {
   display: inline-flex;
   align-items: center;

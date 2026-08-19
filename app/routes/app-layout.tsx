@@ -1,6 +1,6 @@
 import { Form, Link, Outlet, isRouteErrorResponse, useLocation, useNavigation } from "react-router";
 import { useState, useEffect } from "react";
-import { apiGet } from "../lib/session";
+import { apiGet, publicLegacyBase } from "../lib/session";
 import type { Route } from "./+types/app-layout";
 
 type Me = {
@@ -15,7 +15,8 @@ type Me = {
 };
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  return apiGet<Me>("/auth/me", request);
+  const me = await apiGet<Me>("/auth/me", request);
+  return { ...me, legacyBase: publicLegacyBase(request) };
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -62,7 +63,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { user } = loaderData;
+  const { user, legacyBase } = loaderData;
   const navigation = useNavigation();
   const pending = navigation.state !== "idle";
 
@@ -117,10 +118,15 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
         <nav className="primary-nav" aria-label="Navigasi utama">
           <div className="primary-nav-inner">
-            <Link to="/identitas" className="nav-item nav-item-active">
-              <Icon name="id-card" size={14} />
-              <span>Data Identitas</span>
-            </Link>
+            <div className="primary-nav-links">
+              <Link to="/identitas" className="nav-item nav-item-active">
+                <Icon name="id-card" size={14} />
+                <span>Data Identitas</span>
+              </Link>
+              <a href={legacyBase} className="nav-item">
+                <span>Menu lama</span>
+              </a>
+            </div>
             <span className={`nav-status${pending ? " is-pending" : ""}`}>
               <span className="live-dot" />
               <span>{pending ? "Memuat halaman…" : "Sesi aktif"}</span>
