@@ -1,32 +1,27 @@
 import { Form, data, redirect, useNavigation } from "react-router";
-import { apiLogin, getToken, tokenCookie } from "../lib/session.server";
+import { apiLogin, hasSession } from "../lib/session";
 import type { Route } from "./+types/login";
 
 export function meta() {
   return [{ title: "Masuk — SDP" }];
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
-  const token = await getToken(request);
-  if (token) throw redirect("/identitas");
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  if (await hasSession(request)) throw redirect("/identitas");
   const url = new URL(request.url);
   return { returnTo: url.searchParams.get("return") ?? "/identitas" };
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function clientAction({ request }: Route.ClientActionArgs) {
   const form = await request.formData();
   const username = String(form.get("username") ?? "");
   const password = String(form.get("password") ?? "");
   const returnTo = String(form.get("return") ?? "/identitas");
 
   try {
-    const session = await apiLogin(username, password, request);
+    await apiLogin(username, password, request);
     const dest = returnTo.startsWith("/") ? returnTo : "/identitas";
-    return redirect(dest, {
-      headers: {
-        "Set-Cookie": await tokenCookie.serialize(session.token),
-      },
-    });
+    return redirect(dest);
   } catch (error) {
     if (!(error instanceof Error)) {
       throw error;

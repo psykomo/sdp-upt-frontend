@@ -1,5 +1,5 @@
 import { redirect } from "react-router";
-import { acceptLegacyToken, getToken, tokenCookie } from "../lib/session.server";
+import { acceptLegacyToken, hasSession } from "../lib/session";
 import type { Route } from "./+types/auth-legacy";
 
 function safeReturn(value: string | null): string {
@@ -9,37 +9,48 @@ function safeReturn(value: string | null): string {
   return value;
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
-  const dest = safeReturn(url.searchParams.get("return"));
-  const handed = url.searchParams.get("token");
-
-  if (handed) {
-    const token = await acceptLegacyToken(handed, request);
-    if (!token) {
+async function handOver(request: Request, token: string | null, dest: string) {
+  if (token) {
+    const ok = await acceptLegacyToken(token, request);
+    if (!ok) {
       throw redirect(`/login?return=${encodeURIComponent(dest)}`);
     }
-    throw redirect(dest, {
-      headers: { "Set-Cookie": await tokenCookie.serialize(token) },
-    });
+    throw redirect(dest);
   }
 
-  if (await getToken(request)) {
+  if (await hasSession(request)) {
     throw redirect(dest);
   }
 
   throw redirect(`/login?return=${encodeURIComponent(dest)}`);
 }
 
-export async function action({ request }: Route.ActionArgs) {
+function takeHandoverToken(request: Request): { token: string | null; dest: string } {
+  const url = new URL(request.url);
+  let token = url.searchParams.get("token");
+  let dest = safeReturn(url.searchParams.get("return"));
+
+  if (typeof sessionStorage !== "undefined") {
+    if (!token) {
+      token = sessionStorage.getItem("sdp_handover_token");
+    }
+    if (!url.searchParams.get("return")) {
+      dest = safeReturn(sessionStorage.getItem("sdp_handover_return"));
+    }
+    sessionStorage.removeItem("sdp_handover_token");
+    sessionStorage.removeItem("sdp_handover_return");
+  }
+
+  return { token, dest };
+}
+
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  const { token, dest } = takeHandoverToken(request);
+  return handOver(request, token, dest);
+}
+
+export async function clientAction({ request }: Route.ClientActionArgs) {
   const form = await request.formData();
   const dest = safeReturn(String(form.get("return") ?? "/identitas"));
-  const handed = String(form.get("token") ?? "");
-  const token = await acceptLegacyToken(handed, request);
-  if (!token) {
-    throw redirect(`/login?return=${encodeURIComponent(dest)}`);
-  }
-  throw redirect(dest, {
-    headers: { "Set-Cookie": await tokenCookie.serialize(token) },
-  });
+  return handOver(request, String(form.get("token") ?? ""), dest);
 }

@@ -1,14 +1,13 @@
-import { data } from "react-router";
-import { fetchApi, apiBase, publicRequestHost, requireToken } from "../lib/session.server";
+import { data, redirect } from "react-router";
+import { apiBase, fetchApi, publicHeaders, requireToken } from "../lib/session";
 import type { Route } from "./+types/identitas-export";
 
-export async function loader({ request }: Route.LoaderArgs) {
-  const token = await requireToken(request);
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  await requireToken(request);
   const url = new URL(request.url);
   const res = await fetchApi(`${apiBase()}/api/v1/identitas/export?${url.searchParams.toString()}`, {
     headers: {
-      Authorization: `Bearer ${token}`,
-      "X-SDP-Public-Host": publicRequestHost(request),
+      ...publicHeaders(request),
     },
   });
 
@@ -20,10 +19,16 @@ export async function loader({ request }: Route.LoaderArgs) {
     res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ??
     "pencarian-identitas.csv";
 
-  return new Response(res.body, {
-    headers: {
-      "Content-Type": "text/csv; charset=UTF-8",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+
+  url.pathname = "/identitas";
+  throw redirect(`${url.pathname}${url.search}`);
 }

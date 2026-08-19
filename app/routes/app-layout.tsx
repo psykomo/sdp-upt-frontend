@@ -1,6 +1,6 @@
-import { Form, Link, Outlet, isRouteErrorResponse, useLocation } from "react-router";
+import { Form, Link, Outlet, isRouteErrorResponse, useLocation, useNavigation } from "react-router";
 import { useState, useEffect } from "react";
-import { apiGet, requireToken } from "../lib/session.server";
+import { apiGet } from "../lib/session";
 import type { Route } from "./+types/app-layout";
 
 type Me = {
@@ -14,10 +14,8 @@ type Me = {
   };
 };
 
-export async function loader({ request }: Route.LoaderArgs) {
-  const token = await requireToken(request);
-  const me = await apiGet<Me>(token, "/auth/me", request);
-  return me;
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  return apiGet<Me>("/auth/me", request);
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -65,10 +63,17 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const { user } = loaderData;
+  const navigation = useNavigation();
+  const pending = navigation.state !== "idle";
 
   return (
-    <div className="min-h-screen app-wrapper">
+    <div className="min-h-screen app-wrapper" aria-busy={pending}>
       <header className="site-header">
+        {pending ? (
+          <div className="nav-progress" role="progressbar" aria-label="Memuat halaman">
+            <span className="nav-progress-bar" />
+          </div>
+        ) : null}
         <div className="header-main">
           <Link to="/identitas" className="brand" aria-label="SDP 4.0">
             <span className="brand-mark">SDP</span>
@@ -116,9 +121,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
               <Icon name="id-card" size={14} />
               <span>Data Identitas</span>
             </Link>
-            <span className="nav-status">
+            <span className={`nav-status${pending ? " is-pending" : ""}`}>
               <span className="live-dot" />
-              <span>Sesi aktif</span>
+              <span>{pending ? "Memuat halaman…" : "Sesi aktif"}</span>
             </span>
           </div>
         </nav>

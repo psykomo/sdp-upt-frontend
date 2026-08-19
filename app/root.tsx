@@ -39,6 +39,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   var theme = stored || 'dark';
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch(e) {}
+                try {
+                  var u = new URL(location.href);
+                  if (u.pathname.replace(/\\/$/, '') !== '/auth/legacy') return;
+                  var t = u.searchParams.get('token');
+                  if (!t) return;
+                  sessionStorage.setItem('sdp_handover_token', t);
+                  sessionStorage.setItem('sdp_handover_return', u.searchParams.get('return') || '/identitas');
+                  u.searchParams.delete('token');
+                  var q = u.searchParams.toString();
+                  history.replaceState(null, '', u.pathname + (q ? '?' + q : '') + u.hash);
+                } catch(e) {}
               })();
             `,
           }}
@@ -57,6 +68,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return <Outlet />;
+}
+
+export function HydrateFallback() {
+  return (
+    <main className="modern-page-shell">
+      <div className="empty-state-box">
+        <h1 className="empty-title">Memuat SDP 4.0</h1>
+        <p className="empty-desc">Menyiapkan halaman…</p>
+      </div>
+    </main>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

@@ -1,6 +1,6 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { apiGet, apiPutJson, failData, fileToPayload, isApiFail, requireToken } from "../lib/session.server";
+import { apiGet, apiPutJson, failData, fileToPayload, isApiFail } from "../lib/session";
 import type { Route } from "./+types/identitas-ubah";
 
 type LookupItem = { id: string; label: string; propinsiId?: string };
@@ -89,13 +89,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `Ubah Identitas${nama} — SDP 4.0` }];
 }
 
-export async function loader({ request, params }: Route.LoaderArgs) {
-  const token = await requireToken(request);
-  return apiGet<UbahForm>(token, `/identitas/${encodeURIComponent(params.nomorInduk)}/form`, request);
+export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
+  return apiGet<UbahForm>(`/identitas/${encodeURIComponent(params.nomorInduk)}/form`, request);
 }
 
-export async function action({ request, params }: Route.ActionArgs) {
-  const token = await requireToken(request);
+export async function clientAction({ request, params }: Route.ClientActionArgs) {
   const form = await request.formData();
   const payload: Record<string, unknown> = {};
 
@@ -123,7 +121,6 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   const result = await apiPutJson<{ nomorInduk: string }>(
-    token,
     `/identitas/${encodeURIComponent(params.nomorInduk)}`,
     payload,
     request,

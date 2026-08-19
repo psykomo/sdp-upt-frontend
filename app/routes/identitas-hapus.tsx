@@ -4,12 +4,12 @@ import {
   apiDeleteJson,
   apiGet,
   apiPostJson,
+  clearHapusGrant,
   failData,
   getHapusGrant,
-  hapusGrantCookie,
   isApiFail,
-  requireToken,
-} from "../lib/session.server";
+  setHapusGrant,
+} from "../lib/session";
 import type { Route } from "./+types/identitas-hapus";
 
 type Access = { level: string; canWrite: boolean; canDelete: boolean; canPrint: boolean };
@@ -39,19 +39,18 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `Hapus Identitas${nama} — SDP 4.0` }];
 }
 
-export async function loader({ request, params }: Route.LoaderArgs) {
-  const token = await requireToken(request);
+export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
   const noin = params.nomorInduk;
   const [detail, me] = await Promise.all([
-    apiGet<IdentityDetail>(token, `/identitas/${encodeURIComponent(noin)}`, request),
-    apiGet<Me>(token, "/auth/me", request),
+    apiGet<IdentityDetail>(`/identitas/${encodeURIComponent(noin)}`, request),
+    apiGet<Me>("/auth/me", request),
   ]);
 
   if (!detail.access.canDelete) {
     throw data("Mohon maaf anda tidak berhak menghapus data identitas.", { status: 403 });
   }
 
-  const stored = await getHapusGrant(request);
+  const stored = getHapusGrant();
   const supervisorOk =
     !!stored && stored.officerId === me.user.id && stored.nomorInduk === noin;
 
@@ -62,19 +61,17 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   } satisfies HapusPage;
 }
 
-export async function action({ request, params }: Route.ActionArgs) {
-  const token = await requireToken(request);
+export async function clientAction({ request, params }: Route.ClientActionArgs) {
   const noin = params.nomorInduk;
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "delete");
 
   if (intent === "supervisor") {
-    const me = await apiGet<Me>(token, "/auth/me", request);
+    const me = await apiGet<Me>("/auth/me", request);
     const result = await apiPostJson<{
       grant: string;
       supervisor: { id: string; name: string };
     }>(
-      token,
       "/auth/supervisor",
       {
         username: String(form.get("username") ?? ""),
@@ -89,19 +86,16 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     const issued = result as { grant: string; supervisor: { id: string; name: string } };
-    throw redirect(`/identitas/${encodeURIComponent(noin)}/hapus`, {
-      headers: {
-        "Set-Cookie": await hapusGrantCookie.serialize({
-          grant: issued.grant,
-          officerId: me.user.id,
-          nomorInduk: noin,
-          supervisorName: issued.supervisor.name,
-        }),
-      },
+    setHapusGrant({
+      grant: issued.grant,
+      officerId: me.user.id,
+      nomorInduk: noin,
+      supervisorName: issued.supervisor.name,
     });
+    throw redirect(`/identitas/${encodeURIComponent(noin)}/hapus`);
   }
 
-  const stored = await getHapusGrant(request);
+  const stored = getHapusGrant();
   if (!stored || stored.nomorInduk !== noin) {
     return data(
       { ok: false as const, message: "Halaman ini memerlukan autentikasi dari supervisor." },
@@ -110,7 +104,6 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   const result = await apiDeleteJson<{ nomorInduk: string }>(
-    token,
     `/identitas/${encodeURIComponent(noin)}`,
     request,
     stored.grant,
@@ -120,11 +113,8 @@ export async function action({ request, params }: Route.ActionArgs) {
     return failData(result);
   }
 
-  throw redirect(`/identitas?field=no_induk&q=${encodeURIComponent(noin)}&activeOnly=0`, {
-    headers: {
-      "Set-Cookie": await hapusGrantCookie.serialize("", { maxAge: 0 }),
-    },
-  });
+  clearHapusGrant();
+  throw redirect(`/identitas?field=no_induk&q=${encodeURIComponent(noin)}&activeOnly=0`);
 }
 
 function hasOpenPerkara(d: IdentityDetail): boolean {

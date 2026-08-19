@@ -347,6 +347,50 @@ input[type="checkbox"] {
   box-shadow: 0 0 0 3px rgba(0, 173, 31, 0.16);
 }
 
+.nav-progress {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.nav-progress-bar {
+  display: block;
+  height: 100%;
+  width: 35%;
+  background: var(--color-gold);
+  animation: nav-progress-slide 1s ease-in-out infinite;
+}
+
+.nav-status.is-pending {
+  color: var(--color-gold);
+}
+
+.nav-status.is-pending .live-dot {
+  background: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(255, 186, 0, 0.22);
+  animation: live-dot-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes nav-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(380%);
+  }
+}
+
+@keyframes live-dot-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 /* Identity page */
 .page-shell {
   padding: 28px 0 56px;

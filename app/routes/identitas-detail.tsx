@@ -1,6 +1,6 @@
 import { isRouteErrorResponse, Link } from "react-router";
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { apiGet, requireToken } from "../lib/session.server";
+import { apiGet } from "../lib/session";
 import type { Route } from "./+types/identitas-detail";
 
 type Access = { level: string; canWrite: boolean; canDelete: boolean; canPrint: boolean };
@@ -90,10 +90,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `Detail WBP${nama} — SDP 4.0` }];
 }
 
-export async function loader({ request, params }: Route.LoaderArgs) {
-  const token = await requireToken(request);
+export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
   return apiGet<IdentityDetail>(
-    token,
     `/identitas/${encodeURIComponent(params.nomorInduk)}`,
     request,
   );

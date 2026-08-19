@@ -1,7 +1,7 @@
 import { Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { apiGet, publicLegacyBase, requireToken } from "../lib/session.server";
+import { apiGet, publicLegacyBase } from "../lib/session";
 import type { Route } from "./+types/identitas";
 
 type LookupItem = { id: string; label: string };
@@ -97,8 +97,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: `Manajemen Identitas (${total}) — SDP 4.0` }];
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
-  const token = await requireToken(request);
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const url = new URL(request.url);
   const params = url.searchParams;
 
@@ -111,9 +110,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   const [result, agama, pendidikan] = await Promise.all([
-    apiGet<SearchResult>(token, `/identitas?${params.toString()}`, request),
-    apiGet<{ items: LookupItem[] }>(token, "/lookups/agama", request),
-    apiGet<{ items: LookupItem[] }>(token, "/lookups/pendidikan", request),
+    apiGet<SearchResult>(`/identitas?${params.toString()}`, request),
+    apiGet<{ items: LookupItem[] }>("/lookups/agama", request),
+    apiGet<{ items: LookupItem[] }>("/lookups/pendidikan", request),
   ]);
 
   return {
@@ -213,7 +212,6 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
             to={`/identitas/export${qs(params, {})}`}
             className="btn btn-secondary"
             title="Unduh data dalam format file Excel"
-            reloadDocument
           >
             <Icon name="download" size={15} />
             <span>Ekspor Excel</span>
