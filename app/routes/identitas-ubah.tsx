@@ -1,4 +1,4 @@
-import { Form, Link, redirect, useNavigation } from "react-router";
+import { Form, Link, isRouteErrorResponse, redirect, useNavigation } from "react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { apiGet, apiPutJson, failData, fileToPayload, isApiFail } from "../lib/session";
 import type { Route } from "./+types/identitas-ubah";
@@ -90,7 +90,28 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
-  return apiGet<UbahForm>(`/identitas/${encodeURIComponent(params.nomorInduk)}/form`, request);
+  try {
+    return await apiGet<UbahForm>(`/identitas/${encodeURIComponent(params.nomorInduk)}/form`, request);
+  } catch (error) {
+    if (isFormForbidden(error)) {
+      throw redirect(`/identitas/${encodeURIComponent(params.nomorInduk)}`);
+    }
+    throw error;
+  }
+}
+
+function isFormForbidden(error: unknown): boolean {
+  if (isRouteErrorResponse(error) && error.status === 403) {
+    return true;
+  }
+
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    (error as { type?: string }).type === "DataWithResponseInit" &&
+    (error as { init?: { status?: number } }).init?.status === 403
+  );
 }
 
 export async function clientAction({ request, params }: Route.ClientActionArgs) {
@@ -1998,5 +2019,35 @@ function Icon({
     >
       {paths}
     </svg>
+  );
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const notFound = isRouteErrorResponse(error) && error.status === 404;
+  const forbidden = isRouteErrorResponse(error) && error.status === 403;
+  const message = isRouteErrorResponse(error)
+    ? String(error.data || error.statusText)
+    : "Terjadi kesalahan saat memuat formulir ubah identitas.";
+
+  return (
+    <main className="modern-page-shell">
+      <div className="empty-state-box error-box">
+        <div className="empty-icon-circle error-icon">
+          <Icon name="alert-triangle" size={24} />
+        </div>
+        <h3 className="empty-title">
+          {notFound
+            ? "Data WBP Tidak Ditemukan"
+            : forbidden
+              ? "Akses Ditolak — Hak Akses Tidak Memadai"
+              : "Gagal Memuat Formulir"}
+        </h3>
+        <p className="empty-desc">{message}</p>
+        <Link to="/identitas" className="btn btn-secondary">
+          <Icon name="arrow-left" size={14} />
+          <span>Kembali ke Direktori Identitas</span>
+        </Link>
+      </div>
+    </main>
   );
 }
