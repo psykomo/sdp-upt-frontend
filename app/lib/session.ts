@@ -328,7 +328,57 @@ export async function fileToPayload(
   };
 }
 
-export async function apiLogin(username: string, password: string, request?: Request) {
+export type LoginOptions = {
+  tenancyMode: string;
+  requiresTenantId: boolean;
+  requiresWorkingUptId: boolean;
+};
+
+export async function fetchLoginOptions(request?: Request): Promise<LoginOptions> {
+  const res = await fetchApi(`${apiBase()}/api/v1/auth/login-options`, {
+    headers: {
+      Accept: "application/json",
+      ...publicHeaders(request),
+    },
+  });
+
+  if (!res.ok) {
+    return { tenancyMode: "single", requiresTenantId: false, requiresWorkingUptId: false };
+  }
+
+  let body: { ok?: boolean; data?: LoginOptions };
+  try {
+    body = (await res.json()) as { ok?: boolean; data?: LoginOptions };
+  } catch {
+    return { tenancyMode: "single", requiresTenantId: false, requiresWorkingUptId: false };
+  }
+
+  if (!body.ok || !body.data) {
+    return { tenancyMode: "single", requiresTenantId: false, requiresWorkingUptId: false };
+  }
+
+  return {
+    tenancyMode: body.data.tenancyMode ?? "single",
+    requiresTenantId: body.data.requiresTenantId ?? false,
+    requiresWorkingUptId: body.data.requiresWorkingUptId ?? false,
+  };
+}
+
+export async function apiLogin(
+  username: string,
+  password: string,
+  request?: Request,
+  tenantId?: string,
+) {
+  const payload: { username: string; password: string; tenantId?: string } = {
+    username,
+    password,
+  };
+  const tenant = tenantId?.trim();
+  if (tenant) {
+    payload.tenantId = tenant;
+  }
+
   const res = await fetchApi(`${apiBase()}/api/v1/auth/login`, {
     method: "POST",
     headers: {
@@ -336,7 +386,7 @@ export async function apiLogin(username: string, password: string, request?: Req
       Accept: "application/json",
       ...publicHeaders(request),
     },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(payload),
   });
 
   let body: {

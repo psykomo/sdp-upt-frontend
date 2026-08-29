@@ -1,5 +1,5 @@
 import { Form, data, redirect, useNavigation } from "react-router";
-import { apiLogin, hasSession } from "../lib/session";
+import { apiLogin, fetchLoginOptions, hasSession } from "../lib/session";
 import type { Route } from "./+types/login";
 
 export function meta() {
@@ -9,7 +9,12 @@ export function meta() {
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   if (await hasSession(request)) throw redirect("/identitas");
   const url = new URL(request.url);
-  return { returnTo: url.searchParams.get("return") ?? "/identitas" };
+  const loginOptions = await fetchLoginOptions(request);
+
+  return {
+    returnTo: url.searchParams.get("return") ?? "/identitas",
+    loginOptions,
+  };
 }
 
 export async function clientAction({ request }: Route.ClientActionArgs) {
@@ -17,9 +22,10 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
   const username = String(form.get("username") ?? "");
   const password = String(form.get("password") ?? "");
   const returnTo = String(form.get("return") ?? "/identitas");
+  const tenantId = String(form.get("tenantId") ?? "");
 
   try {
-    await apiLogin(username, password, request);
+    await apiLogin(username, password, request, tenantId);
     const dest = returnTo.startsWith("/") ? returnTo : "/identitas";
     return redirect(dest);
   } catch (error) {
@@ -33,10 +39,26 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
   }
 }
 
+function loginIntro(loginOptions: {
+  requiresTenantId: boolean;
+  requiresWorkingUptId: boolean;
+}): string {
+  if (loginOptions.requiresTenantId) {
+    return "Masuk dengan akun SDP. Instalasi pusat memerlukan ID UPT untuk memilih database tenant.";
+  }
+  if (loginOptions.requiresWorkingUptId) {
+    return "Masuk dengan akun SDP. Petugas UPT pada database nasional: isi ID UPT (contoh 093). Pusat dan Kanwil boleh kosong.";
+  }
+  return "Gunakan akun SDP Anda. Sesi ini menerbitkan JWT untuk API dan frontend.";
+}
+
 export default function LoginPage({ loaderData, actionData }: Route.ComponentProps) {
   const navigation = useNavigation();
   const submitting = navigation.state === "submitting";
   const error = actionData?.error;
+  const { loginOptions } = loaderData;
+  const showUptId = loginOptions.requiresTenantId || loginOptions.requiresWorkingUptId;
+  const uptIdRequired = loginOptions.requiresTenantId;
 
   return (
     <main className="login-shell">
@@ -50,10 +72,7 @@ export default function LoginPage({ loaderData, actionData }: Route.ComponentPro
         </div>
 
         <h1>Masuk ke SDP 4.0</h1>
-        <p className="login-intro">
-          Gunakan akun yang sama dengan aplikasi lama. Sesi ini menerbitkan JWT
-          untuk API dan frontend baru.
-        </p>
+        <p className="login-intro">{loginIntro(loginOptions)}</p>
 
         {error ? (
           <p className="login-error">{error}</p>
@@ -61,6 +80,19 @@ export default function LoginPage({ loaderData, actionData }: Route.ComponentPro
 
         <Form method="post" className="login-form">
           <input type="hidden" name="return" value={loaderData.returnTo} />
+          {showUptId ? (
+            <label className="login-field">
+              ID UPT
+              <input
+                name="tenantId"
+                autoComplete="off"
+                placeholder="093"
+                pattern="[A-Za-z0-9_]+"
+                title="ID UPT, contoh 093 atau 001"
+                required={uptIdRequired}
+              />
+            </label>
+          ) : null}
           <label className="login-field">
             Username
             <input
