@@ -256,6 +256,19 @@ export async function apiPostJson<T>(
   return readWriteBody<T>(res);
 }
 
+export async function apiSetWorkingScope(
+  filterUptId?: string | null,
+  filterKanwilId?: string | null,
+): Promise<void> {
+  const result = await apiPostJson<{ token: string }>("/auth/working-scope", {
+    filterUptId: filterUptId ?? null,
+    filterKanwilId: filterKanwilId ?? null,
+  });
+  if (isApiFail(result)) {
+    throw new Error(result.message);
+  }
+}
+
 export async function apiDeleteJson<T>(
   path: string,
   request?: Request,

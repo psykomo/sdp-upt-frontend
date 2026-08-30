@@ -226,6 +226,36 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 
+.working-scope-picker {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.working-scope-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.working-scope-field select {
+  min-width: 140px;
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 12px;
+}
+
+.working-scope-error {
+  color: #ffb4b4;
+  font-size: 11px;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

@@ -12,6 +12,8 @@ type UbahForm = {
   isTahanan: boolean;
   access: Access;
   readOnly: boolean;
+  canEditSensitiveFields?: boolean;
+  lockedFields?: string[];
   case: {
     nomorBerkas: string;
     nomorRegistrasi: string;
@@ -160,6 +162,9 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
   const navigation = useNavigation();
   const saving = navigation.state === "submitting";
   const disabled = d.readOnly || saving;
+  const locked = new Set(d.lockedFields ?? []);
+  const fieldLocked = (name: string) => locked.has(name);
+  const inputDisabled = (name?: string) => disabled || (name ? fieldLocked(name) : false);
   const [tab, setTab] = useState<FormTab>("biodata");
   const [wni, setWni] = useState(String(v.kewarganegaraan ?? "WNI") === "WNI");
   const [propinsi, setPropinsi] = useState(String(v.propinsi ?? ""));
@@ -298,6 +303,16 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
         </div>
       ) : null}
 
+      {!d.canEditSensitiveFields && !d.readOnly ? (
+        <div className="empty-panel-notice" role="alert">
+          <Icon name="shield" size={16} />
+          <span>
+            Tanggal lahir, kewarganegaraan, dan agama terkunci karena remisi sudah diproses.
+            Buka jendela akses Sidang TPP (AKSES002) untuk mengubahnya.
+          </span>
+        </div>
+      ) : null}
+
       {actionData?.message ? (
         <div className="form-alert" role="alert">
           <Icon name="alert-triangle" size={18} />
@@ -390,7 +405,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                 label="Tanggal Lahir"
                 defaultValue={str(v.tanggalLahir)}
                 error={errors.tanggalLahir}
-                disabled={disabled}
+                disabled={inputDisabled("tanggalLahir")}
                 required
                 placeholder="dd/mm/yyyy (Contoh: 27/08/1967)"
               />
@@ -399,7 +414,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                 label="Kewarganegaraan"
                 items={d.lookups.kewarganegaraan}
                 defaultValue={str(v.kewarganegaraan)}
-                disabled={disabled}
+                disabled={inputDisabled("kewarganegaraan")}
                 onChange={(value) => setWni(value === "WNI")}
               />
               {wni ? null : (
@@ -408,7 +423,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                   label="Negara Asal / Asing"
                   items={d.lookups.negara}
                   defaultValue={str(v.negaraAsing)}
-                  disabled={disabled}
+                  disabled={inputDisabled("negaraAsing")}
                 />
               )}
               <Select
@@ -416,7 +431,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                 label="Agama"
                 items={d.lookups.agama}
                 defaultValue={str(v.agama)}
-                disabled={disabled}
+                disabled={inputDisabled("agama")}
                 onChange={setAgama}
               />
               {agama === "LAIN" ? (
@@ -424,7 +439,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                   name="agamaLain"
                   label="Keterangan Agama Lain"
                   defaultValue={str(v.agamaLain)}
-                  disabled={disabled}
+                  disabled={inputDisabled("agamaLain")}
                   placeholder="Sebutkan agama"
                 />
               ) : (
@@ -488,7 +503,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                     label="Tempat Lahir (Kota/Kab)"
                     items={d.lookups.dati2}
                     defaultValue={str(v.tempatLahir)}
-                    disabled={disabled}
+                    disabled={inputDisabled("tempatLahir")}
                   />
                   <Select
                     name="tempatAsal"
@@ -523,7 +538,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                     name="tempatLahirLain"
                     label="Tempat Lahir (Luar Negeri)"
                     defaultValue={str(v.tempatLahirLain)}
-                    disabled={disabled}
+                    disabled={inputDisabled("tempatLahirLain")}
                   />
                   <Text
                     name="tempatAsalLain"

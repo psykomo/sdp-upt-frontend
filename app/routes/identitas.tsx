@@ -80,6 +80,29 @@ const FIELDS = [
   { value: "tgl_msk_lapas", label: "Tgl Masuk UPT" },
 ] as const;
 
+const PROFILE_COLUMNS: Record<
+  string,
+  { label: string; sortKey: string; className: string; render: (item: IdentityItem) => ReactNode }
+> = {
+  agama: {
+    label: "Agama",
+    sortKey: "agama",
+    className: "col-religion",
+    render: (item) => <span className="cell-text">{item.agama || "—"}</span>,
+  },
+  asalUpt: {
+    label: "Asal UPT",
+    sortKey: "asalUpt",
+    className: "col-religion",
+    render: (item) => <span className="cell-text">{item.asalUpt || "—"}</span>,
+  },
+};
+
+function profileColumnMeta(columns: string[]) {
+  const key = columns.find((column) => column === "agama" || column === "asalUpt") ?? "agama";
+  return { key, meta: PROFILE_COLUMNS[key] };
+}
+
 const SORT_KEYS: Record<string, string> = {
   nomorInduk: "noin",
   nomorRegistrasi: "NMR_REG_GOL",
@@ -151,7 +174,8 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
   const [fieldState, setFieldState] = useState(field);
   const [showFilters, setShowFilters] = useState(false);
 
-  const { items, pagination, access } = result;
+  const { items, pagination, access, columns } = result;
+  const profileColumn = profileColumnMeta(columns);
   const from = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.perPage + 1;
   const to = Math.min(pagination.page * pagination.perPage, pagination.total);
   const pages = Math.max(1, Math.ceil(pagination.total / pagination.perPage));
@@ -446,8 +470,8 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
                   <th scope="col" className="col-address">
                     {renderSortableTh("alamat", "Alamat", params)}
                   </th>
-                  <th scope="col" className="col-religion">
-                    {renderSortableTh("agama", "Agama", params)}
+                  <th scope="col" className={profileColumn.meta.className}>
+                    {renderSortableTh(profileColumn.meta.sortKey, profileColumn.meta.label, params)}
                   </th>
                   <th scope="col" className="col-status">
                     {renderSortableTh("verifikasi", "Verifikasi", params)}
@@ -542,9 +566,9 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
                         </div>
                       </td>
 
-                      {/* 7. Agama */}
-                      <td className="col-religion">
-                        <span className="cell-text">{item.agama || "—"}</span>
+                      {/* 7. Profile column (Agama or Asal UPT) */}
+                      <td className={profileColumn.meta.className}>
+                        {profileColumn.meta.render(item)}
                       </td>
 
                       {/* 8. Status Verifikasi */}
@@ -761,42 +785,46 @@ function ActionMenu({ item, access }: { item: IdentityItem; access: Access }) {
             zIndex: 99999,
           }}
         >
-          <div className="dropdown-section-title">Dokumen Cetak</div>
+          {access.canPrint ? (
+            <>
+              <div className="dropdown-section-title">Dokumen Cetak</div>
 
-          <a
-            href={item.links.cetakIdentitas}
-            target="_blank"
-            rel="noreferrer"
-            className="dropdown-item"
-            onClick={() => setIsOpen(false)}
-          >
-            <Icon name="file-text" size={14} />
-            <span>Cetak Lembar Identitas</span>
-          </a>
+              <a
+                href={item.links.cetakIdentitas}
+                target="_blank"
+                rel="noreferrer"
+                className="dropdown-item"
+                onClick={() => setIsOpen(false)}
+              >
+                <Icon name="file-text" size={14} />
+                <span>Cetak Lembar Identitas</span>
+              </a>
 
-          {item.isTahanan ? (
-            <a
-              href={item.links.cetakTahanan}
-              target="_blank"
-              rel="noreferrer"
-              className="dropdown-item"
-              onClick={() => setIsOpen(false)}
-            >
-              <Icon name="calendar" size={14} />
-              <span>Cetak Masa Tahanan</span>
-            </a>
+              {item.isTahanan ? (
+                <a
+                  href={item.links.cetakTahanan}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="dropdown-item"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Icon name="calendar" size={14} />
+                  <span>Cetak Masa Tahanan</span>
+                </a>
+              ) : null}
+
+              <a
+                href={item.links.cetakSidikJari}
+                target="_blank"
+                rel="noreferrer"
+                className="dropdown-item"
+                onClick={() => setIsOpen(false)}
+              >
+                <Icon name="fingerprint" size={14} />
+                <span>Cetak Lembar Sidik Jari</span>
+              </a>
+            </>
           ) : null}
-
-          <a
-            href={item.links.cetakSidikJari}
-            target="_blank"
-            rel="noreferrer"
-            className="dropdown-item"
-            onClick={() => setIsOpen(false)}
-          >
-            <Icon name="fingerprint" size={14} />
-            <span>Cetak Lembar Sidik Jari</span>
-          </a>
 
           {access.canDelete ? (
             <>

@@ -1,7 +1,9 @@
 import { Form, Link, Outlet, isRouteErrorResponse, useLocation, useNavigation } from "react-router";
 import { useState, useEffect } from "react";
-import { apiGet, publicLegacyBase } from "../lib/session";
+import { apiGet, apiSetWorkingScope, publicLegacyBase } from "../lib/session";
 import type { Route } from "./+types/app-layout";
+
+type LookupItem = { id: string; label: string; kanwilId?: string };
 
 type Me = {
   user: {
@@ -11,6 +13,9 @@ type Me = {
     uptName: string | null;
     isPusat: boolean;
     isKanwil: boolean;
+    uptId: string | null;
+    sessionFilterUptId?: string | null;
+    sessionFilterKanwilId?: string | null;
   };
 };
 
@@ -85,8 +90,14 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           </Link>
 
           <div className="site-context">
-            <span>Unit pelaksana teknis</span>
-            <strong>{user.uptName ?? "Sistem Database Pemasyarakatan"}</strong>
+            {user.isPusat || user.isKanwil ? (
+              <WorkingScopePicker user={user} />
+            ) : (
+              <>
+                <span>Unit pelaksana teknis</span>
+                <strong>{user.uptName ?? "Sistem Database Pemasyarakatan"}</strong>
+              </>
+            )}
           </div>
 
           <div className="header-actions">
@@ -135,6 +146,107 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         </nav>
       </header>
       <Outlet />
+    </div>
+  );
+}
+
+function WorkingScopePicker({ user }: { user: Me["user"] }) {
+  const [kanwilItems, setKanwilItems] = useState<LookupItem[]>([]);
+  const [uptItems, setUptItems] = useState<LookupItem[]>([]);
+  const [kanwilId, setKanwilId] = useState(user.sessionFilterKanwilId ?? "");
+  const [uptId, setUptId] = useState(user.sessionFilterUptId ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user.isPusat) {
+      return;
+    }
+
+    apiGet<{ items: LookupItem[] }>("/lookups/kanwil")
+      .then((data) => setKanwilItems(data.items))
+      .catch(() => setKanwilItems([]));
+  }, [user.isPusat]);
+
+  useEffect(() => {
+    const kanwil = user.isKanwil ? (user.uptId ?? "") : kanwilId;
+    const query = kanwil ? `?kanwil=${encodeURIComponent(kanwil)}` : "";
+    apiGet<{ items: LookupItem[] }>(`/lookups/upt${query}`)
+      .then((data) => setUptItems(data.items))
+      .catch(() => setUptItems([]));
+  }, [user.isKanwil, user.uptId, kanwilId]);
+
+  const applyScope = async (nextKanwil: string, nextUpt: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await apiSetWorkingScope(nextUpt || null, user.isPusat ? nextKanwil || null : null);
+      window.location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal mengubah filter wilayah.");
+      setSaving(false);
+    }
+  };
+
+  const onKanwilChange = (value: string) => {
+    setKanwilId(value);
+    setUptId("");
+    void applyScope(value, "");
+  };
+
+  const onUptChange = (value: string) => {
+    setUptId(value);
+    void applyScope(kanwilId, value);
+  };
+
+  const scopeLabel =
+    uptId !== ""
+      ? (uptItems.find((item) => item.id === uptId)?.label ?? uptId)
+      : kanwilId !== ""
+        ? (kanwilItems.find((item) => item.id === kanwilId)?.label ?? kanwilId)
+        : "Semua Wilayah";
+
+  return (
+    <div className="working-scope-picker">
+      <span>Filter wilayah kerja</span>
+      <strong title={scopeLabel}>{scopeLabel}</strong>
+      <div className="working-scope-controls">
+        {user.isPusat ? (
+          <label className="working-scope-field">
+            <span className="sr-only">Kanwil</span>
+            <select
+              value={kanwilId}
+              disabled={saving}
+              onChange={(event) => onKanwilChange(event.target.value)}
+              aria-label="Filter Kanwil"
+            >
+              <option value="">Semua Kanwil</option>
+              {kanwilItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label className="working-scope-field">
+          <span className="sr-only">UPT</span>
+          <select
+            value={uptId}
+            disabled={saving}
+            onChange={(event) => onUptChange(event.target.value)}
+            aria-label="Filter UPT"
+          >
+            <option value="">Semua UPT</option>
+            {uptItems.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {error ? <span className="working-scope-error">{error}</span> : null}
     </div>
   );
 }
