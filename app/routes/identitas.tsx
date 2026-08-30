@@ -445,6 +445,7 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
           pages={pages}
           total={pagination.total}
           params={params}
+          legacyBase={legacyBase}
         />
       ) : (
         <section className="table-card" aria-label="Tabel Data Identitas">
@@ -857,6 +858,7 @@ function AnalisaDossier({
   pages,
   total,
   params,
+  legacyBase,
 }: {
   item?: IdentityItem;
   access: Access;
@@ -864,6 +866,7 @@ function AnalisaDossier({
   pages: number;
   total: number;
   params: URLSearchParams;
+  legacyBase: string;
 }) {
   const [photoError, setPhotoError] = useState(!item?.fotoDepanUrl);
 
@@ -997,6 +1000,17 @@ function AnalisaDossier({
               <span className="biometric-label">Asal UPT:</span>
               <span className="biometric-value">{item.asalUpt || "—"}</span>
             </div>
+          </div>
+
+          <div className="dossier-print-group">
+            <span className="print-group-title">Modul Terkait</span>
+            <a
+              href={`${legacyBase}/ManajemenIdentitas/catatKunjungan/${encodeURIComponent(item.nomorInduk)}`}
+              className="btn btn-secondary btn-sm btn-block"
+            >
+              <Icon name="users" size={13} />
+              <span>Catat Kunjungan</span>
+            </a>
           </div>
 
           {access.canPrint ? (

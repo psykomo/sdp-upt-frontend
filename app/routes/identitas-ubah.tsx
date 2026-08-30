@@ -1,9 +1,18 @@
 import { Form, Link, isRouteErrorResponse, redirect, useNavigation } from "react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { apiGet, apiPutJson, failData, fileToPayload, isApiFail } from "../lib/session";
+import { apiDeleteJson, apiGet, apiPostFormData, apiPutJson, failData, fileToPayload, isApiFail } from "../lib/session";
 import type { Route } from "./+types/identitas-ubah";
 
 type LookupItem = { id: string; label: string; propinsiId?: string };
+type DocumentItem = {
+  id: string;
+  judul: string | null;
+  keterangan: string | null;
+  namaFile: string | null;
+  mimeType: string | null;
+  downloadUrl: string;
+  viewUrl: string;
+};
 type Access = { level: string; canWrite: boolean; canDelete: boolean; canPrint: boolean };
 type FormValues = Record<string, string | boolean>;
 type UbahForm = {
@@ -27,12 +36,13 @@ type UbahForm = {
   foto: Record<string, string | null>;
   sidikJari: Record<string, string | null>;
   identitasLama: Array<{ nomorInduk: string; namaLengkap: string | null; href: string | null }>;
+  documents?: DocumentItem[];
   lookups: Record<string, LookupItem[]>;
 };
 
 type ActionResult = { ok: false; message: string; errors: Record<string, string> };
 
-type FormTab = "biodata" | "pekerjaan" | "keluarga" | "fisik" | "sidik-jari" | "foto";
+type FormTab = "biodata" | "pekerjaan" | "keluarga" | "fisik" | "sidik-jari" | "foto" | "kemiripan" | "dokumen";
 
 type IconName =
   | "activity"
@@ -66,6 +76,8 @@ const TABS: Array<{ id: FormTab; label: string; icon: IconName; num: string }> =
   { id: "fisik", label: "Data Fisik & Ciri Khusus", icon: "activity", num: "04" },
   { id: "sidik-jari", label: "Sidik Jari Biometrik", icon: "fingerprint", num: "05" },
   { id: "foto", label: "Galeri Foto 4 Sudut", icon: "camera", num: "06" },
+  { id: "kemiripan", label: "Identitas Lama", icon: "clock", num: "07" },
+  { id: "dokumen", label: "Dokumen Lampiran", icon: "file-text", num: "08" },
 ];
 
 const BOOL_FIELDS = [
@@ -175,6 +187,11 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
   const [keahlian1, setKeahlian1] = useState(String(v.keahlian1 ?? ""));
   const [keahlian2, setKeahlian2] = useState(String(v.keahlian2 ?? ""));
   const [residivis, setResidivis] = useState(String(v.residivis ?? ""));
+  const [similarList, setSimilarList] = useState(d.identitasLama);
+  const [documents, setDocuments] = useState<DocumentItem[]>(d.documents ?? []);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [docBusy, setDocBusy] = useState(false);
+  const similarCsv = similarList.map((item) => item.nomorInduk).join(",");
 
   const kotaOptions = useMemo(
     () => (d.lookups.dati2 ?? []).filter((item) => !propinsi || item.propinsiId === propinsi),
@@ -333,7 +350,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
       >
         <input type="hidden" name="nomorInduk" value={d.nomorInduk} />
         <input type="hidden" name="idSidikJari" defaultValue={str(v.idSidikJari)} />
-        <input type="hidden" name="nomorIndukSimilar" defaultValue={str(v.nomorIndukSimilar)} />
+        <input type="hidden" name="nomorIndukSimilar" value={similarCsv} />
         <input type="hidden" name="fotoKiriPath" defaultValue={str(v.fotoKiriPath)} />
         <input type="hidden" name="fotoKananPath" defaultValue={str(v.fotoKananPath)} />
         <input type="hidden" name="fotoDepanPath" defaultValue={str(v.fotoDepanPath)} />
@@ -1151,6 +1168,28 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
           </div>
         </section>
 
+        <section className="content-card" hidden={tab !== "kemiripan"}>
+          <KemiripanPanel
+            nomorInduk={d.nomorInduk}
+            items={similarList}
+            canWrite={d.access.canWrite && !d.readOnly}
+            onChange={setSimilarList}
+          />
+        </section>
+
+        <section className="content-card" hidden={tab !== "dokumen"}>
+          <DokumenPanel
+            nomorInduk={d.nomorInduk}
+            items={documents}
+            canWrite={d.access.canWrite && !d.readOnly}
+            busy={docBusy}
+            error={docError}
+            onBusy={setDocBusy}
+            onError={setDocError}
+            onChange={setDocuments}
+          />
+        </section>
+
         {/* 4. Bottom Sticky Action Bar */}
         <div className="ubah-sticky-footer">
           <div className="footer-status-indicator">
@@ -1176,6 +1215,354 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
         </div>
       </Form>
     </main>
+  );
+}
+
+type SimilarItem = { nomorInduk: string; namaLengkap: string | null; href: string | null };
+type SearchHit = { nomorInduk: string; namaLengkap: string | null };
+
+function KemiripanPanel({
+  nomorInduk,
+  items,
+  canWrite,
+  onChange,
+}: {
+  nomorInduk: string;
+  items: SimilarItem[];
+  canWrite: boolean;
+  onChange: (items: SimilarItem[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  async function runSearch() {
+    const q = query.trim();
+    if (q.length < 2) {
+      setSearchError("Ketik minimal 2 karakter untuk mencari.");
+      return;
+    }
+
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const params = new URLSearchParams({
+        field: "nama",
+        q,
+        perPage: "10",
+        page: "1",
+        mode: "grid",
+      });
+      const result = await apiGet<{ items: SearchHit[] }>(`/identitas?${params.toString()}`);
+      setHits(result.items.filter((item) => item.nomorInduk !== nomorInduk));
+    } catch {
+      setSearchError("Gagal memuat hasil pencarian.");
+      setHits([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function pick(hit: SearchHit) {
+    if (items.some((item) => item.nomorInduk === hit.nomorInduk)) {
+      return;
+    }
+    onChange([
+      ...items,
+      {
+        nomorInduk: hit.nomorInduk,
+        namaLengkap: hit.namaLengkap,
+        href: `/identitas/${hit.nomorInduk}`,
+      },
+    ]);
+    setOpen(false);
+    setQuery("");
+    setHits([]);
+  }
+
+  return (
+    <>
+      <div className="content-card-header">
+        <Icon name="clock" size={18} className="section-icon" />
+        <h3>Identitas Lama / Kemiripan</h3>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="empty-panel-notice">
+          <Icon name="check" size={15} />
+          <span>Belum ada identitas lama yang ditautkan. Simpan perubahan setelah menambah atau menghapus tautan.</span>
+        </div>
+      ) : (
+        <div className="identitas-lama-grid">
+          {items.map((item) => (
+            <div key={item.nomorInduk} className="identitas-lama-card">
+              <div className="lama-info">
+                <Link to={`/identitas/${item.nomorInduk}`} className="lama-name-link">
+                  {item.namaLengkap || item.nomorInduk}
+                </Link>
+                <code className="monospace-id-tag">{item.nomorInduk}</code>
+              </div>
+              {canWrite ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onChange(items.filter((row) => row.nomorInduk !== item.nomorInduk))}
+                >
+                  <Icon name="trash" size={13} />
+                  <span>Hapus</span>
+                </button>
+              ) : (
+                <Link to={`/identitas/${item.nomorInduk}`} className="btn btn-secondary btn-sm">
+                  <Icon name="eye" size={13} />
+                  <span>Buka</span>
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canWrite ? (
+        <div className="form-section-group">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
+            <Icon name="users" size={13} />
+            <span>Tambah Identitas Lama</span>
+          </button>
+        </div>
+      ) : null}
+
+      <dialog
+        ref={dialogRef}
+        className="ambil-foto-dialog kemiripan-search-dialog"
+        onClose={() => setOpen(false)}
+      >
+        <div className="ambil-foto-header">
+          <h3>Cari Identitas Lama</h3>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(false)}>
+            Tutup
+          </button>
+        </div>
+        <div className="form-section-group">
+          <div className="form-grid-2col">
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Nama lengkap WBP"
+              className="form-modern-input"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void runSearch();
+                }
+              }}
+            />
+            <button type="button" className="btn btn-primary btn-sm" disabled={searching} onClick={() => void runSearch()}>
+              {searching ? "Mencari…" : "Cari"}
+            </button>
+          </div>
+        </div>
+        {searchError ? <p className="form-field-error-msg">{searchError}</p> : null}
+        <div className="form-section-group">
+          {hits.length === 0 ? (
+            <p className="form-field-helper-txt">Hasil pencarian akan muncul di sini.</p>
+          ) : (
+            hits.map((hit) => (
+              <div key={hit.nomorInduk} className="identitas-lama-card">
+                <div className="lama-info">
+                  <strong>{hit.namaLengkap || hit.nomorInduk}</strong>
+                  <code className="monospace-id-tag">{hit.nomorInduk}</code>
+                </div>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => pick(hit)}>
+                  Pilih
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </dialog>
+    </>
+  );
+}
+
+function DokumenPanel({
+  nomorInduk,
+  items,
+  canWrite,
+  busy,
+  error,
+  onBusy,
+  onError,
+  onChange,
+}: {
+  nomorInduk: string;
+  items: DocumentItem[];
+  canWrite: boolean;
+  busy: boolean;
+  error: string | null;
+  onBusy: (value: boolean) => void;
+  onError: (value: string | null) => void;
+  onChange: (items: DocumentItem[]) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [judul, setJudul] = useState("");
+  const [keterangan, setKeterangan] = useState("");
+
+  async function uploadDocument() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) {
+      onError("Pilih berkas PDF terlebih dahulu.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (judul.trim()) formData.append("judul", judul.trim());
+    if (keterangan.trim()) formData.append("keterangan", keterangan.trim());
+
+    onBusy(true);
+    onError(null);
+    const result = await apiPostFormData<DocumentItem>(
+      `/identitas/${encodeURIComponent(nomorInduk)}/documents`,
+      formData,
+    );
+    onBusy(false);
+
+    if (isApiFail(result)) {
+      onError(result.message);
+      return;
+    }
+
+    onChange([result, ...items]);
+    setJudul("");
+    setKeterangan("");
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function removeDocument(id: string) {
+    onBusy(true);
+    onError(null);
+    const result = await apiDeleteJson<{ ok: boolean }>(`/documents/${encodeURIComponent(id)}`);
+    onBusy(false);
+
+    if (isApiFail(result)) {
+      onError(result.message);
+      return;
+    }
+
+    onChange(items.filter((item) => item.id !== id));
+  }
+
+  return (
+    <>
+      <div className="content-card-header">
+        <Icon name="file-text" size={18} className="section-icon" />
+        <h3>Dokumen Lampiran (PDF, maks. 2 MB)</h3>
+      </div>
+
+      {error ? (
+        <div className="form-alert" role="alert">
+          <Icon name="alert-triangle" size={16} />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {items.length === 0 ? (
+        <div className="empty-panel-notice">
+          <Icon name="file-text" size={15} />
+          <span>Belum ada dokumen PDF yang dilampirkan.</span>
+        </div>
+      ) : (
+        <div className="table-scroll-container">
+          <table className="modern-table">
+            <thead>
+              <tr>
+                <th scope="col">Judul</th>
+                <th scope="col">Keterangan</th>
+                <th scope="col">Berkas</th>
+                <th scope="col" className="col-actions">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((doc) => (
+                <tr key={doc.id}>
+                  <td>{doc.judul || "—"}</td>
+                  <td>{doc.keterangan || "—"}</td>
+                  <td>{doc.namaFile || "—"}</td>
+                  <td className="col-actions">
+                    <div className="action-button-group">
+                      <a href={doc.downloadUrl} className="btn btn-secondary btn-sm" download>
+                        Unduh
+                      </a>
+                      <a href={doc.viewUrl} className="btn btn-secondary btn-sm" target="_blank" rel="noreferrer">
+                        Lihat
+                      </a>
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={busy}
+                          onClick={() => removeDocument(doc.id)}
+                        >
+                          Hapus
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {canWrite ? (
+        <div className="form-section-group">
+          <h4 className="form-section-title">Tambah Dokumen</h4>
+          <div className="form-grid-2col">
+            <Field label="Judul">
+              <input
+                type="text"
+                value={judul}
+                onChange={(event) => setJudul(event.target.value)}
+                className="form-modern-input"
+                placeholder="Judul dokumen"
+                disabled={busy}
+              />
+            </Field>
+            <Field label="Keterangan">
+              <input
+                type="text"
+                value={keterangan}
+                onChange={(event) => setKeterangan(event.target.value)}
+                className="form-modern-input"
+                placeholder="Keterangan (opsional)"
+                disabled={busy}
+              />
+            </Field>
+          </div>
+          <Field label="Berkas PDF">
+            <input ref={fileRef} type="file" accept="application/pdf,.pdf" disabled={busy} />
+          </Field>
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={uploadDocument}>
+            <Icon name="upload" size={13} />
+            <span>{busy ? "Menyimpan…" : "Unggah Dokumen"}</span>
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }
 

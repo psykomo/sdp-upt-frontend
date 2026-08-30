@@ -18,6 +18,15 @@ type CaseView = {
   statusSubPenghuni: string;
 };
 type Ciri = { fotoUrl: string | null; keterangan: string | null };
+type DocumentItem = {
+  id: string;
+  judul: string | null;
+  keterangan: string | null;
+  namaFile: string | null;
+  mimeType: string | null;
+  downloadUrl: string;
+  viewUrl: string;
+};
 type IdentityDetail = {
   nomorInduk: string;
   namaLengkap: string | null;
@@ -71,9 +80,10 @@ type IdentityDetail = {
     namaLengkap: string | null;
     href: string | null;
   }>;
+  documents?: DocumentItem[];
 };
 
-type DetailTab = "biodata" | "pekerjaan" | "keluarga" | "fisik" | "sidik-jari" | "foto" | "identitas-lama";
+type DetailTab = "biodata" | "pekerjaan" | "keluarga" | "fisik" | "sidik-jari" | "foto" | "identitas-lama" | "dokumen";
 
 const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: IconName; count?: string }> = [
   { id: "biodata", label: "Biodata & Alamat", icon: "id-card" },
@@ -83,6 +93,7 @@ const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: IconName; count?:
   { id: "sidik-jari", label: "Sidik Jari Biometrik", icon: "fingerprint" },
   { id: "foto", label: "Galeri Foto", icon: "camera" },
   { id: "identitas-lama", label: "Histori Identitas", icon: "clock" },
+  { id: "dokumen", label: "Dokumen Lampiran", icon: "file-text" },
 ];
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -91,10 +102,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
-  return apiGet<IdentityDetail>(
-    `/identitas/${encodeURIComponent(params.nomorInduk)}`,
-    request,
-  );
+  const nomorInduk = encodeURIComponent(params.nomorInduk);
+  const [detail, documents] = await Promise.all([
+    apiGet<Omit<IdentityDetail, "documents">>(`/identitas/${nomorInduk}`, request),
+    apiGet<{ items: DocumentItem[] }>(`/identitas/${nomorInduk}/documents`, request).catch(
+      () => ({ items: [] as DocumentItem[] }),
+    ),
+  ]);
+
+  return { ...detail, documents: documents.items };
 }
 
 export default function IdentitasDetailPage({ loaderData }: Route.ComponentProps) {
@@ -751,6 +767,65 @@ export default function IdentitasDetailPage({ loaderData }: Route.ComponentProps
                       </Link>
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {activeTab === "dokumen" && (
+          <div id="panel-dokumen" role="tabpanel" aria-labelledby="tab-dokumen" className="tab-panel-body">
+            <section className="content-card">
+              <div className="content-card-header">
+                <Icon name="file-text" size={16} />
+                <h3>Dokumen Lampiran</h3>
+              </div>
+
+              {!d.documents || d.documents.length === 0 ? (
+                <div className="empty-panel-notice">
+                  <Icon name="file-text" size={15} />
+                  <span>Belum ada dokumen PDF yang dilampirkan pada identitas ini.</span>
+                </div>
+              ) : (
+                <div className="table-scroll-container">
+                  <table className="modern-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Judul</th>
+                        <th scope="col">Keterangan</th>
+                        <th scope="col">Berkas</th>
+                        <th scope="col" className="col-actions">
+                          Aksi
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.documents.map((doc) => (
+                        <tr key={doc.id}>
+                          <td>{doc.judul || "—"}</td>
+                          <td>{doc.keterangan || "—"}</td>
+                          <td>{doc.namaFile || "—"}</td>
+                          <td className="col-actions">
+                            <div className="action-button-group">
+                              <a href={doc.downloadUrl} className="btn btn-secondary btn-sm" download>
+                                <Icon name="file-text" size={13} />
+                                <span>Unduh</span>
+                              </a>
+                              <a
+                                href={doc.viewUrl}
+                                className="btn btn-secondary btn-sm"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <Icon name="eye" size={13} />
+                                <span>Lihat</span>
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </section>

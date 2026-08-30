@@ -294,6 +294,56 @@ export async function apiDeleteJson<T>(
   return readWriteBody<T>(res);
 }
 
+export async function apiPostFormData<T>(
+  path: string,
+  formData: FormData,
+  request?: Request,
+): Promise<T | ApiFail> {
+  let res: Response;
+  try {
+    res = await fetchApi(`${apiBase()}/api/v1${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        ...publicHeaders(request),
+      },
+      body: formData,
+    });
+  } catch (error) {
+    if (error instanceof Response && error.status === 503) {
+      return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+    }
+    throw error;
+  }
+
+  return readWriteBody<T>(res);
+}
+
+export async function apiPutFormData<T>(
+  path: string,
+  formData: FormData,
+  request?: Request,
+): Promise<T | ApiFail> {
+  let res: Response;
+  try {
+    res = await fetchApi(`${apiBase()}/api/v1${path}`, {
+      method: "PUT",
+      headers: {
+        Accept: "application/json",
+        ...publicHeaders(request),
+      },
+      body: formData,
+    });
+  } catch (error) {
+    if (error instanceof Response && error.status === 503) {
+      return { ok: false, status: 503, message: API_UNAVAILABLE, errors: {} };
+    }
+    throw error;
+  }
+
+  return readWriteBody<T>(res);
+}
+
 export async function apiPutJson<T>(
   path: string,
   payload: unknown,
