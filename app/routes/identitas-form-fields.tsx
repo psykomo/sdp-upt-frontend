@@ -1,0 +1,2135 @@
+import { Link } from "react-router";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { apiDeleteJson, apiGet, apiPostFormData, isApiFail } from "../lib/session";
+import {
+  type FormTabId,
+  type FormValues,
+  type IconName,
+  type LookupItem,
+  type SimilarItem,
+  bool,
+  str,
+} from "./identitas-form-shared";
+
+export type IdentitasFormTabsProps = {
+  tab: FormTabId;
+  onTabChange: (tab: FormTabId) => void;
+  tabs: Array<{ id: FormTabId; label: string; icon: IconName; num: string }>;
+  values: FormValues;
+  lookups: Record<string, LookupItem[]>;
+  foto: Record<string, string | null>;
+  errors: Record<string, string>;
+  disabled: boolean;
+  inputDisabled: (name?: string) => boolean;
+  nomorInduk: string;
+  nomorIndukDisplay: string;
+  nomorIndukHelper: string;
+  rekamSidikJariHref: string;
+  similarList: SimilarItem[];
+  onSimilarChange: (items: SimilarItem[]) => void;
+  canWriteSimilar: boolean;
+  // controlled dependent selects
+  wni: boolean;
+  setWni: (v: boolean) => void;
+  propinsi: string;
+  setPropinsi: (v: string) => void;
+  suku: string;
+  setSuku: (v: string) => void;
+  agama: string;
+  setAgama: (v: string) => void;
+  pendidikan: string;
+  setPendidikan: (v: string) => void;
+  pekerjaan: string;
+  setPekerjaan: (v: string) => void;
+  keahlian1: string;
+  setKeahlian1: (v: string) => void;
+  keahlian2: string;
+  setKeahlian2: (v: string) => void;
+  residivis: string;
+  setResidivis: (v: string) => void;
+  children?: ReactNode;
+};
+
+export function IdentitasFormTabs(props: IdentitasFormTabsProps) {
+  const {
+    tab,
+    onTabChange,
+    tabs,
+    values: v,
+    lookups,
+    foto,
+    errors,
+    disabled,
+    inputDisabled,
+    nomorInduk,
+    nomorIndukDisplay,
+    nomorIndukHelper,
+    rekamSidikJariHref,
+    similarList,
+    onSimilarChange,
+    canWriteSimilar,
+    wni,
+    setWni,
+    propinsi,
+    setPropinsi,
+    suku,
+    setSuku,
+    agama,
+    setAgama,
+    pendidikan,
+    setPendidikan,
+    pekerjaan,
+    setPekerjaan,
+    keahlian1,
+    setKeahlian1,
+    keahlian2,
+    setKeahlian2,
+    residivis,
+    setResidivis,
+    children,
+  } = props;
+
+  const kotaOptions = useMemo(
+    () => (lookups.dati2 ?? []).filter((item) => !propinsi || item.propinsiId === propinsi),
+    [lookups.dati2, propinsi],
+  );
+
+  const setTab = onTabChange;
+
+  return (
+    <>
+      {/* Tab Navigation */}
+      <div className="detail-tabs-bar" role="tablist">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.id}
+            className={`detail-tab-btn ${tab === item.id ? "active" : ""}`}
+            onClick={() => setTab(item.id)}
+          >
+            <span className="tab-index-num">{item.num}</span>
+            <Icon name={item.icon} size={15} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+      
+      {/* TAB 1: BIODATA & ALAMAT */}
+      <section className="content-card" hidden={tab !== "biodata"}>
+        <div className="content-card-header">
+          <Icon name="id-card" size={18} className="section-icon" />
+          <h3>Biodata & Identitas Personal</h3>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Identitas Utama & Kependudukan</h4>
+          <div className="form-grid-2col">
+            <LockedField
+                      label="Nomor Induk WBP"
+                      value={nomorIndukDisplay}
+                      helperText={nomorIndukHelper}
+                    />
+            <Text
+              name="nik"
+              label="NIK KTP (16 Digit)"
+              defaultValue={str(v.nik)}
+              error={errors.nik}
+              disabled={disabled}
+              maxLength={16}
+              placeholder="Contoh: 1607102708670081"
+            />
+            <Text
+              name="namaLengkap"
+              label="Nama Lengkap Sesuai Berkas"
+              defaultValue={str(v.namaLengkap)}
+              error={errors.namaLengkap}
+              disabled={disabled}
+              required
+              placeholder="Masukkan nama lengkap WBP"
+            />
+            <Select
+              name="jenisKelamin"
+              label="Jenis Kelamin"
+              items={lookups.kelamin}
+              defaultValue={str(v.jenisKelamin)}
+              disabled={disabled}
+            />
+            <Text
+              name="tanggalLahir"
+              label="Tanggal Lahir"
+              defaultValue={str(v.tanggalLahir)}
+              error={errors.tanggalLahir}
+              disabled={inputDisabled("tanggalLahir")}
+              required
+              placeholder="dd/mm/yyyy (Contoh: 27/08/1967)"
+            />
+            <Select
+              name="kewarganegaraan"
+              label="Kewarganegaraan"
+              items={lookups.kewarganegaraan}
+              defaultValue={str(v.kewarganegaraan)}
+              disabled={inputDisabled("kewarganegaraan")}
+              onChange={(value) => setWni(value === "WNI")}
+            />
+            {wni ? null : (
+              <Select
+                name="negaraAsing"
+                label="Negara Asal / Asing"
+                items={lookups.negara}
+                defaultValue={str(v.negaraAsing)}
+                disabled={inputDisabled("negaraAsing")}
+              />
+            )}
+            <Select
+              name="agama"
+              label="Agama"
+              items={lookups.agama}
+              defaultValue={str(v.agama)}
+              disabled={inputDisabled("agama")}
+              onChange={setAgama}
+            />
+            {agama === "LAIN" ? (
+              <Text
+                name="agamaLain"
+                label="Keterangan Agama Lain"
+                defaultValue={str(v.agamaLain)}
+                disabled={inputDisabled("agamaLain")}
+                placeholder="Sebutkan agama"
+              />
+            ) : (
+              <input type="hidden" name="agamaLain" value="" />
+            )}
+            <Select
+              name="suku"
+              label="Suku / Etnis"
+              items={lookups.suku}
+              defaultValue={str(v.suku)}
+              disabled={disabled}
+              onChange={setSuku}
+            />
+            {suku === "LAN" ? (
+              <Text
+                name="sukuLain"
+                label="Keterangan Suku Lain"
+                defaultValue={str(v.sukuLain)}
+                disabled={disabled}
+                placeholder="Sebutkan suku"
+              />
+            ) : (
+              <input type="hidden" name="sukuLain" value="" />
+            )}
+            <Select
+              name="statusPerkawinan"
+              label="Status Perkawinan"
+              items={lookups.perkawinan}
+              defaultValue={str(v.statusPerkawinan)}
+              disabled={disabled}
+            />
+            <Select
+              name="residivis"
+              label="Status Residivis"
+              items={lookups.residivis}
+              defaultValue={str(v.residivis)}
+              disabled={disabled}
+              onChange={setResidivis}
+            />
+            {residivis === "RDV1" ? (
+              <Text
+                name="residivisKe"
+                label="Residivis Kali Ke-"
+                defaultValue={str(v.residivisKe)}
+                disabled={disabled}
+                placeholder="Contoh: 2"
+              />
+            ) : (
+              <input type="hidden" name="residivisKe" value="" />
+            )}
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Tempat Asal & Wilayah Domisili</h4>
+          <div className="form-grid-2col">
+            {wni ? (
+              <>
+                <Select
+                  name="tempatLahir"
+                  label="Tempat Lahir (Kota/Kab)"
+                  items={lookups.dati2}
+                  defaultValue={str(v.tempatLahir)}
+                  disabled={inputDisabled("tempatLahir")}
+                />
+                <Select
+                  name="tempatAsal"
+                  label="Tempat Asal (Kota/Kab)"
+                  items={lookups.dati2}
+                  defaultValue={str(v.tempatAsal)}
+                  disabled={disabled}
+                />
+                <Select
+                  name="propinsi"
+                  label="Propinsi Domisili"
+                  items={lookups.propinsi}
+                  defaultValue={str(v.propinsi)}
+                  disabled={disabled}
+                  onChange={setPropinsi}
+                />
+                <Select
+                  name="kota"
+                  label="Kota / Kabupaten Domisili"
+                  items={kotaOptions}
+                  defaultValue={str(v.kota)}
+                  disabled={disabled}
+                />
+                <input type="hidden" name="tempatLahirLain" defaultValue={str(v.tempatLahirLain)} />
+                <input type="hidden" name="propinsiLain" value="" />
+                <input type="hidden" name="kotaLain" value="" />
+                <input type="hidden" name="tempatAsalLain" value="" />
+              </>
+            ) : (
+              <>
+                <Text
+                  name="tempatLahirLain"
+                  label="Tempat Lahir (Luar Negeri)"
+                  defaultValue={str(v.tempatLahirLain)}
+                  disabled={inputDisabled("tempatLahirLain")}
+                />
+                <Text
+                  name="tempatAsalLain"
+                  label="Tempat Asal (Luar Negeri)"
+                  defaultValue={str(v.tempatAsalLain)}
+                  disabled={disabled}
+                />
+                <Text
+                  name="propinsiLain"
+                  label="Propinsi / Wilayah Asing"
+                  defaultValue={str(v.propinsiLain)}
+                  disabled={disabled}
+                />
+                <Text
+                  name="kotaLain"
+                  label="Kota Luar Negeri"
+                  defaultValue={str(v.kotaLain)}
+                  disabled={disabled}
+                />
+                <input type="hidden" name="tempatLahir" value="" />
+                <input type="hidden" name="tempatAsal" value="" />
+                <input type="hidden" name="propinsi" value="" />
+                <input type="hidden" name="kota" value="" />
+              </>
+            )}
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Alamat Lengkap & Kontak</h4>
+          <div className="form-grid-2col">
+            <div className="col-span-full">
+              <Area
+                name="alamat"
+                label="Alamat Lengkap Tempat Tinggal"
+                defaultValue={str(v.alamat)}
+                error={errors.alamat}
+                disabled={disabled}
+                required
+                placeholder="Masukkan jalan, RT/RW, kelurahan, kecamatan, kabupaten/kota"
+              />
+            </div>
+            <div className="col-span-full">
+              <Text
+                name="alamatAlternatif"
+                label="Alamat Alternatif / Domisili Lain"
+                defaultValue={str(v.alamatAlternatif)}
+                disabled={disabled}
+                placeholder="Alamat tempat tinggal lain bila ada"
+              />
+            </div>
+            <Text
+              name="telepon"
+              label="Nomor Telepon / Handphone"
+              defaultValue={str(v.telepon)}
+              disabled={disabled}
+              placeholder="Contoh: 08123456789"
+            />
+            <Text
+              name="kodepos"
+              label="Kode Pos"
+              defaultValue={str(v.kodepos)}
+              error={errors.kodepos}
+              disabled={disabled}
+              maxLength={5}
+              placeholder="Contoh: 30123"
+            />
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Nama Alias & Nama Kecil</h4>
+          <div className="form-grid-3col">
+            <Text name="namaAlias1" label="Nama Alias 1" defaultValue={str(v.namaAlias1)} disabled={disabled} placeholder="Nama alias 1" />
+            <Text name="namaAlias2" label="Nama Alias 2" defaultValue={str(v.namaAlias2)} disabled={disabled} placeholder="Nama alias 2" />
+            <Text name="namaAlias3" label="Nama Alias 3" defaultValue={str(v.namaAlias3)} disabled={disabled} placeholder="Nama alias 3" />
+            <Text name="namaKecil1" label="Nama Kecil 1" defaultValue={str(v.namaKecil1)} disabled={disabled} placeholder="Nama panggilan 1" />
+            <Text name="namaKecil2" label="Nama Kecil 2" defaultValue={str(v.namaKecil2)} disabled={disabled} placeholder="Nama panggilan 2" />
+            <Text name="namaKecil3" label="Nama Kecil 3" defaultValue={str(v.namaKecil3)} disabled={disabled} placeholder="Nama panggilan 3" />
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Status Khusus & Penilaian Keamanan</h4>
+          <div className="form-checkbox-grid">
+            <CheckCard
+              name="beresikoTinggi"
+              label="WBP Berisiko Tinggi (High Risk)"
+              description="Perhatian khusus dalam pengawasan dan penempatan sel"
+              defaultChecked={bool(v.beresikoTinggi)}
+              disabled={disabled}
+            />
+            <CheckCard
+              name="pengaruhMasyarakat"
+              label="Pengaruh Terhadap Masyarakat"
+              description="Perkara menarik perhatian publik atau tokoh masyarakat"
+              defaultChecked={bool(v.pengaruhMasyarakat)}
+              disabled={disabled}
+            />
+            <CheckCard
+              name="disabilitas"
+              label="Penyandang Disabilitas"
+              description="Memerlukan sarana dan prasarana aksesibilitas khusus"
+              defaultChecked={bool(v.disabilitas)}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </section>
+      
+      {/* TAB 2: PEKERJAAN & KEAHLIAN */}
+      <section className="content-card" hidden={tab !== "pekerjaan"}>
+        <div className="content-card-header">
+          <Icon name="briefcase" size={18} className="section-icon" />
+          <h3>Pekerjaan, Pendidikan & Keahlian</h3>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Riwayat Pekerjaan & Pendidikan</h4>
+          <div className="form-grid-2col">
+            <Select
+              name="jenisPekerjaan"
+              label="Jenis Pekerjaan Utama"
+              items={lookups.pekerjaan}
+              defaultValue={str(v.jenisPekerjaan)}
+              disabled={disabled}
+              onChange={setPekerjaan}
+            />
+            {pekerjaan === "89" ? (
+              <Text
+                name="pekerjaanLain"
+                label="Pekerjaan Lain-lain"
+                defaultValue={str(v.pekerjaanLain)}
+                disabled={disabled}
+                placeholder="Sebutkan pekerjaan"
+              />
+            ) : (
+              <input type="hidden" name="pekerjaanLain" value="" />
+            )}
+            {pekerjaan === "5" ? (
+              <>
+                <Text
+                  name="namaInstansiPns"
+                  label="Nama Instansi / Departemen PNS"
+                  defaultValue={str(v.namaInstansiPns)}
+                  disabled={disabled}
+                  placeholder="Nama Kementerian / Dinas"
+                />
+                <Text
+                  name="nip"
+                  label="NIP (Nomor Induk Pegawai)"
+                  defaultValue={str(v.nip)}
+                  disabled={disabled}
+                  placeholder="18 digit NIP"
+                />
+              </>
+            ) : (
+              <>
+                <input type="hidden" name="namaInstansiPns" value="" />
+                <input type="hidden" name="nip" value="" />
+              </>
+            )}
+            <Select
+              name="pendidikan"
+              label="Tingkat Pendidikan Terakhir"
+              items={lookups.pendidikan}
+              defaultValue={str(v.pendidikan)}
+              disabled={disabled}
+              onChange={setPendidikan}
+            />
+            {pendidikan === "PDLA" ? (
+              <Text
+                name="pendidikanLain"
+                label="Pendidikan Lain-lain"
+                defaultValue={str(v.pendidikanLain)}
+                disabled={disabled}
+                placeholder="Sebutkan tingkat pendidikan"
+              />
+            ) : (
+              <input type="hidden" name="pendidikanLain" value="" />
+            )}
+            <Select
+              name="tingkatPenghasilan"
+              label="Tingkat Penghasilan Rata-rata"
+              items={lookups.penghasilan}
+              defaultValue={str(v.tingkatPenghasilan)}
+              disabled={disabled}
+            />
+            <Text
+              name="alamatPekerjaan"
+              label="Alamat Tempat Bekerja / Usaha"
+              defaultValue={str(v.alamatPekerjaan)}
+              disabled={disabled}
+              placeholder="Alamat kantor / tempat usaha"
+            />
+            <div className="col-span-full">
+              <Area
+                name="keteranganPekerjaan"
+                label="Keterangan Detail Pekerjaan"
+                defaultValue={str(v.keteranganPekerjaan)}
+                disabled={disabled}
+                placeholder="Uraian tugas, jabatan, atau spesialisasi pekerjaan"
+              />
+            </div>
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Keahlian, Kemampuan & Minat</h4>
+          <div className="form-grid-2col">
+            <Select
+              name="keahlian1"
+              label="Keahlian Utama (Keahlian 1)"
+              items={lookups.keahlian}
+              defaultValue={str(v.keahlian1)}
+              disabled={disabled}
+              onChange={setKeahlian1}
+            />
+            <Select
+              name="level1"
+              label="Tingkat Kemahiran 1"
+              items={lookups.level}
+              defaultValue={str(v.level1)}
+              disabled={disabled}
+            />
+            {keahlian1 === "ZA99" ? (
+              <div className="col-span-full">
+                <Text
+                  name="keahlian1Lain"
+                  label="Keahlian 1 Lain-lain"
+                  defaultValue={str(v.keahlian1Lain)}
+                  disabled={disabled}
+                  placeholder="Sebutkan keahlian lain"
+                />
+              </div>
+            ) : (
+              <input type="hidden" name="keahlian1Lain" value="" />
+            )}
+      
+            <Select
+              name="keahlian2"
+              label="Keahlian Tambahan (Keahlian 2)"
+              items={lookups.keahlian}
+              defaultValue={str(v.keahlian2)}
+              disabled={disabled}
+              onChange={setKeahlian2}
+            />
+            <Select
+              name="level2"
+              label="Tingkat Kemahiran 2"
+              items={lookups.level}
+              defaultValue={str(v.level2)}
+              disabled={disabled}
+            />
+            {keahlian2 === "ZA99" ? (
+              <div className="col-span-full">
+                <Text
+                  name="keahlian2Lain"
+                  label="Keahlian 2 Lain-lain"
+                  defaultValue={str(v.keahlian2Lain)}
+                  disabled={disabled}
+                  placeholder="Sebutkan keahlian lain"
+                />
+              </div>
+            ) : (
+              <input type="hidden" name="keahlian2Lain" value="" />
+            )}
+      
+            <div className="col-span-full">
+              <Area
+                name="minat"
+                label="Minat & Bakat WBP (Untuk Pembinaan)"
+                defaultValue={str(v.minat)}
+                disabled={disabled}
+                placeholder="Minat bidang pelatihan kemandirian / kepribadian"
+              />
+            </div>
+          </div>
+      
+          <div className="form-checkbox-grid mt-4">
+            <CheckCard
+              name="bacaLatin"
+              label="Mampu Membaca Huruf Latin"
+              description="Literasi aksara Latin untuk bahan bacaan umum"
+              defaultChecked={bool(v.bacaLatin)}
+              disabled={disabled}
+            />
+            <CheckCard
+              name="bacaQuran"
+              label="Mampu Membaca Al-Qur'an / Kitab Suci"
+              description="Kemampuan membaca kitab suci untuk pembinaan kerohanian"
+              defaultChecked={bool(v.bacaQuran)}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </section>
+      
+      {/* TAB 3: RELASI KELUARGA */}
+      <section className="content-card" hidden={tab !== "keluarga"}>
+        <div className="content-card-header">
+          <Icon name="users" size={18} className="section-icon" />
+          <h3>Relasi Keluarga & Kontak Darurat</h3>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Data Orang Tua & Saudara Kandung</h4>
+          <div className="form-grid-2col">
+            <Text
+              name="namaAyah"
+              label="Nama Lengkap Ayah Kandung"
+              defaultValue={str(v.namaAyah)}
+              error={errors.namaAyah}
+              disabled={disabled}
+              required
+              placeholder="Nama ayah"
+            />
+            <Text
+              name="alamatAyah"
+              label="Alamat / Tempat Tinggal Ayah"
+              defaultValue={str(v.alamatAyah)}
+              disabled={disabled}
+              placeholder="Alamat atau domisili ayah"
+            />
+            <Text
+              name="namaIbu"
+              label="Nama Lengkap Ibu Kandung"
+              defaultValue={str(v.namaIbu)}
+              error={errors.namaIbu}
+              disabled={disabled}
+              required
+              placeholder="Nama ibu"
+            />
+            <Text
+              name="alamatIbu"
+              label="Alamat / Tempat Tinggal Ibu"
+              defaultValue={str(v.alamatIbu)}
+              disabled={disabled}
+              placeholder="Alamat atau domisili ibu"
+            />
+            <Text
+              name="anakKe"
+              label="Anak Urutan Ke-"
+              defaultValue={str(v.anakKe)}
+              error={errors.anakKe}
+              disabled={disabled}
+              placeholder="Contoh: 1"
+            />
+            <Text
+              name="jumlahSaudara"
+              label="Jumlah Saudara Kandung"
+              defaultValue={str(v.jumlahSaudara)}
+              error={errors.jumlahSaudara}
+              disabled={disabled}
+              placeholder="Contoh: 3"
+            />
+            <div className="col-span-full">
+              <Area
+                name="namaSaudara"
+                label="Daftar Nama Saudara Kandung"
+                defaultValue={str(v.namaSaudara)}
+                disabled={disabled}
+                placeholder="Sebutkan nama saudara kandung dipisahkan tanda koma"
+              />
+            </div>
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Data Pasangan & Anak</h4>
+          <div className="form-grid-2col">
+            <Text
+              name="jumlahIstriSuami"
+              label="Jumlah Istri / Suami"
+              defaultValue={str(v.jumlahIstriSuami)}
+              error={errors.jumlahIstriSuami}
+              disabled={disabled}
+              placeholder="Contoh: 1"
+            />
+            <Text
+              name="jumlahAnak"
+              label="Jumlah Anak"
+              defaultValue={str(v.jumlahAnak)}
+              error={errors.jumlahAnak}
+              disabled={disabled}
+              required
+              placeholder="Contoh: 2"
+            />
+            <div className="col-span-full">
+              <Area
+                name="namaIstriSuami"
+                label="Nama Istri / Suami"
+                defaultValue={str(v.namaIstriSuami)}
+                disabled={disabled}
+                placeholder="Nama lengkap pasangan"
+              />
+            </div>
+            <div className="col-span-full">
+              <Text
+                name="alamatIstriSuami"
+                label="Alamat Tempat Tinggal Pasangan"
+                defaultValue={str(v.alamatIstriSuami)}
+                disabled={disabled}
+                placeholder="Alamat pasangan saat ini"
+              />
+            </div>
+            <div className="col-span-full">
+              <Area
+                name="namaAnak"
+                label="Daftar Nama Anak"
+                defaultValue={str(v.namaAnak)}
+                disabled={disabled}
+                placeholder="Sebutkan nama anak dipisahkan tanda koma"
+              />
+            </div>
+            <div className="col-span-full">
+              <Text
+                name="teleponKeluarga"
+                label="Nomor Telepon Kontak Keluarga (Darurat)"
+                defaultValue={str(v.teleponKeluarga)}
+                disabled={disabled}
+                placeholder="Contoh: 08123456789 (Kontak darurat yang dapat dihubungi)"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* TAB 4: DATA FISIK & CIRI KHUSUS */}
+      <section className="content-card" hidden={tab !== "fisik"}>
+        <div className="content-card-header">
+          <Icon name="activity" size={18} className="section-icon" />
+          <h3>Data Fisik, Antropometri & Ciri Khusus</h3>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Parameter Antropometri & Fisik</h4>
+          <div className="form-grid-3col">
+            <Text name="tinggi" label="Tinggi Badan (cm)" defaultValue={str(v.tinggi)} error={errors.tinggi} disabled={disabled} placeholder="Contoh: 170" />
+            <Text name="berat" label="Berat Badan (kg)" defaultValue={str(v.berat)} error={errors.berat} disabled={disabled} placeholder="Contoh: 65" />
+            <Select name="warnaKulit" label="Warna Kulit" items={lookups.kulit} defaultValue={str(v.warnaKulit)} disabled={disabled} />
+            <Select name="bentukRambut" label="Bentuk Rambut" items={lookups.bentukRambut} defaultValue={str(v.bentukRambut)} disabled={disabled} />
+            <Select name="warnaRambut" label="Warna Rambut" items={lookups.rambut} defaultValue={str(v.warnaRambut)} disabled={disabled} />
+            <Select name="kacamata" label="Pemakaian Kacamata" items={lookups.kacamata} defaultValue={str(v.kacamata)} disabled={disabled} />
+            <Select name="bentukMata" label="Bentuk Mata" items={lookups.bentukMata} defaultValue={str(v.bentukMata)} disabled={disabled} />
+            <Select name="warnaMata" label="Warna Mata" items={lookups.warnaMata} defaultValue={str(v.warnaMata)} disabled={disabled} />
+            <Select name="hidung" label="Bentuk Hidung" items={lookups.hidung} defaultValue={str(v.hidung)} disabled={disabled} />
+            <Select name="rautMuka" label="Raut Muka / Wajah" items={lookups.muka} defaultValue={str(v.rautMuka)} disabled={disabled} />
+            <Select name="bentukBibir" label="Bentuk Bibir" items={lookups.bibir} defaultValue={str(v.bentukBibir)} disabled={disabled} />
+            <Select name="mulut" label="Bentuk Mulut" items={lookups.mulut} defaultValue={str(v.mulut)} disabled={disabled} />
+            <Select name="telinga" label="Bentuk Telinga" items={lookups.telinga} defaultValue={str(v.telinga)} disabled={disabled} />
+            <Select name="lengan" label="Bentuk Lengan" items={lookups.lengan} defaultValue={str(v.lengan)} disabled={disabled} />
+            <Select name="tangan" label="Bentuk Tangan" items={lookups.tangan} defaultValue={str(v.tangan)} disabled={disabled} />
+            <Select name="kaki" label="Bentuk Kaki" items={lookups.kaki} defaultValue={str(v.kaki)} disabled={disabled} />
+            <div className="col-span-full">
+              <Area name="cacat" label="Cacat Fisik / Tubuh Lainnya" defaultValue={str(v.cacat)} disabled={disabled} placeholder="Keterangan kelainan fisik atau cacat bawaan/cedera" />
+            </div>
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Dokumentasi Ciri Khusus, Tato & Bekas Luka</h4>
+          <div className="form-ciri-grid">
+            <CiriSlot
+              num={1}
+              textName="ciri1"
+              fileName="ciri1File"
+              textValue={str(v.ciri1)}
+              photoUrl={foto.ciri1}
+              error={errors.ciri1}
+              disabled={disabled}
+            />
+            <CiriSlot
+              num={2}
+              textName="ciri2"
+              fileName="ciri2File"
+              textValue={str(v.ciri2)}
+              photoUrl={foto.ciri2}
+              disabled={disabled}
+            />
+            <CiriSlot
+              num={3}
+              textName="ciri3"
+              fileName="ciri3File"
+              textValue={str(v.ciri3)}
+              photoUrl={foto.ciri3}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </section>
+      
+      {/* TAB 5: SIDIK JARI */}
+      <section className="content-card" hidden={tab !== "sidik-jari"}>
+        <div className="content-card-header">
+          <Icon name="fingerprint" size={18} className="section-icon" />
+          <h3>Data Daktiloskopi & Sidik Jari Biometrik</h3>
+        </div>
+      
+        <div className="biometric-notice-box">
+          <div className="notice-icon-box">
+            <Icon name="fingerprint" size={24} />
+          </div>
+          <div className="notice-text-content">
+            <h4>Perekaman Sensor Biometrik 10 Jari</h4>
+            <p>
+              Perekaman gambar sidik jari biometrik menggunakan perangkat scanner fisik dilakukan melalui modul perekaman daktiloskopi khusus.
+            </p>
+            {rekamSidikJariHref ? (
+                      <a
+                        href={rekamSidikJariHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Icon name="edit" size={13} />
+                        <span>Buka Modul Scanner Perekaman Sidik Jari</span>
+                      </a>
+                    ) : null}
+          </div>
+        </div>
+      
+        <div className="form-section-group">
+          <h4 className="form-section-title">Parameter Rumus & Registrasi Daktil</h4>
+          <div className="form-grid-2col">
+            <Text
+              name="pengambilSidikJari"
+              label="Nama Petugas Pengambil Sidik Jari"
+              defaultValue={str(v.pengambilSidikJari)}
+              disabled={disabled}
+              placeholder="Nama petugas daktil"
+            />
+            <Text
+              name="noPaspor"
+              label="Nomor Paspor (Bila Ada)"
+              defaultValue={str(v.noPaspor)}
+              disabled={disabled}
+              placeholder="Nomor paspor aktif"
+            />
+            <Text
+              name="rumusDaktil"
+              label="Rumus Daktiloskopi Henry"
+              defaultValue={str(v.rumusDaktil)}
+              disabled={disabled}
+              placeholder="Contoh: I 17 U O 12 / M 17 U O 10"
+            />
+            <Text
+              name="nomorDaktil"
+              label="Nomor Registrasi Kartu Daktiloskopi"
+              defaultValue={str(v.nomorDaktil)}
+              disabled={disabled}
+              placeholder="Nomor kartu daktil"
+            />
+            <Text
+              name="tanggalSidikJari"
+              label="Tanggal Pengambilan Sidik Jari"
+              defaultValue={str(v.tanggalSidikJari)}
+              error={errors.tanggalSidikJari}
+              disabled={disabled}
+              placeholder="dd/mm/yyyy (Contoh: 14/01/2020)"
+            />
+          </div>
+        </div>
+      </section>
+      
+      {/* TAB 6: FOTO IDENTITAS 4 SUDUT */}
+      <section className="content-card" hidden={tab !== "foto"}>
+        <div className="content-card-header">
+          <Icon name="camera" size={18} className="section-icon" />
+          <h3>Dokumentasi Foto Identitas 4 Sudut</h3>
+        </div>
+      
+        <p className="form-section-hint">
+          Ambil foto dari kamera atau unggah berkas JPG/PNG. Foto disimpan saat Simpan.
+        </p>
+      
+        <div className="photo-angles-upload-grid">
+          <PhotoUploadAngleCard
+            angleKey="fotoDepan"
+            title="Tampak Depan"
+            subtitle="Wajah menghadap lurus ke kamera"
+            previewUrl={foto.depan}
+            error={errors.fotoDepan}
+            disabled={disabled}
+            required
+          />
+          <PhotoUploadAngleCard
+            angleKey="fotoKiri"
+            title="Samping Kiri (90° / 45°)"
+            subtitle="Profil wajah tampak sisi kiri"
+            previewUrl={foto.kiri}
+            error={errors.fotoKiri}
+            disabled={disabled}
+            required
+          />
+          <PhotoUploadAngleCard
+            angleKey="fotoKanan"
+            title="Samping Kanan (90° / 45°)"
+            subtitle="Profil wajah tampak sisi kanan"
+            previewUrl={foto.kanan}
+            error={errors.fotoKanan}
+            disabled={disabled}
+            required
+          />
+          <PhotoUploadAngleCard
+            angleKey="fotoCloseup"
+            title="Close-Up Wajah"
+            subtitle="Fokus area wajah & mata"
+            previewUrl={foto.closeup}
+            disabled={disabled}
+          />
+        </div>
+      </section>
+      
+      <section className="content-card" hidden={tab !== "kemiripan"}>
+        <KemiripanPanel
+          nomorInduk={nomorInduk}
+          items={similarList}
+          canWrite={canWriteSimilar}
+          onChange={onSimilarChange}
+        />
+      </section>
+      {children}
+    </>
+  );
+}
+
+export type DocumentItem = {
+  id: string;
+  judul: string | null;
+  keterangan: string | null;
+  namaFile: string | null;
+  mimeType: string | null;
+  downloadUrl: string;
+  viewUrl: string;
+};
+type SearchHit = { nomorInduk: string; namaLengkap: string | null };
+
+export function KemiripanPanel({
+  nomorInduk,
+  items,
+  canWrite,
+  onChange,
+}: {
+  nomorInduk: string;
+  items: SimilarItem[];
+  canWrite: boolean;
+  onChange: (items: SimilarItem[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  async function runSearch() {
+    const q = query.trim();
+    if (q.length < 2) {
+      setSearchError("Ketik minimal 2 karakter untuk mencari.");
+      return;
+    }
+
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const params = new URLSearchParams({
+        field: "nama",
+        q,
+        perPage: "10",
+        page: "1",
+        mode: "grid",
+      });
+      const result = await apiGet<{ items: SearchHit[] }>(`/identitas?${params.toString()}`);
+      setHits(result.items.filter((item) => item.nomorInduk !== nomorInduk));
+    } catch {
+      setSearchError("Gagal memuat hasil pencarian.");
+      setHits([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function pick(hit: SearchHit) {
+    if (items.some((item) => item.nomorInduk === hit.nomorInduk)) {
+      return;
+    }
+    onChange([
+      ...items,
+      {
+        nomorInduk: hit.nomorInduk,
+        namaLengkap: hit.namaLengkap,
+        href: `/identitas/${hit.nomorInduk}`,
+      },
+    ]);
+    setOpen(false);
+    setQuery("");
+    setHits([]);
+  }
+
+  return (
+    <>
+      <div className="content-card-header">
+        <Icon name="clock" size={18} className="section-icon" />
+        <h3>Identitas Lama / Kemiripan</h3>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="empty-panel-notice">
+          <Icon name="check" size={15} />
+          <span>Belum ada identitas lama yang ditautkan. Simpan perubahan setelah menambah atau menghapus tautan.</span>
+        </div>
+      ) : (
+        <div className="identitas-lama-grid">
+          {items.map((item) => (
+            <div key={item.nomorInduk} className="identitas-lama-card">
+              <div className="lama-info">
+                <Link to={`/identitas/${item.nomorInduk}`} className="lama-name-link">
+                  {item.namaLengkap || item.nomorInduk}
+                </Link>
+                <code className="monospace-id-tag">{item.nomorInduk}</code>
+              </div>
+              {canWrite ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onChange(items.filter((row) => row.nomorInduk !== item.nomorInduk))}
+                >
+                  <Icon name="trash" size={13} />
+                  <span>Hapus</span>
+                </button>
+              ) : (
+                <Link to={`/identitas/${item.nomorInduk}`} className="btn btn-secondary btn-sm">
+                  <Icon name="eye" size={13} />
+                  <span>Buka</span>
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canWrite ? (
+        <div className="form-section-group">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
+            <Icon name="users" size={13} />
+            <span>Tambah Identitas Lama</span>
+          </button>
+        </div>
+      ) : null}
+
+      <dialog
+        ref={dialogRef}
+        className="ambil-foto-dialog kemiripan-search-dialog"
+        onClose={() => setOpen(false)}
+      >
+        <div className="ambil-foto-header">
+          <h3>Cari Identitas Lama</h3>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(false)}>
+            Tutup
+          </button>
+        </div>
+        <div className="form-section-group">
+          <div className="form-grid-2col">
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Nama lengkap WBP"
+              className="form-modern-input"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void runSearch();
+                }
+              }}
+            />
+            <button type="button" className="btn btn-primary btn-sm" disabled={searching} onClick={() => void runSearch()}>
+              {searching ? "Mencari…" : "Cari"}
+            </button>
+          </div>
+        </div>
+        {searchError ? <p className="form-field-error-msg">{searchError}</p> : null}
+        <div className="form-section-group">
+          {hits.length === 0 ? (
+            <p className="form-field-helper-txt">Hasil pencarian akan muncul di sini.</p>
+          ) : (
+            hits.map((hit) => (
+              <div key={hit.nomorInduk} className="identitas-lama-card">
+                <div className="lama-info">
+                  <strong>{hit.namaLengkap || hit.nomorInduk}</strong>
+                  <code className="monospace-id-tag">{hit.nomorInduk}</code>
+                </div>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => pick(hit)}>
+                  Pilih
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </dialog>
+    </>
+  );
+}
+
+export function DokumenPanel({
+  nomorInduk,
+  items,
+  canWrite,
+  busy,
+  error,
+  onBusy,
+  onError,
+  onChange,
+}: {
+  nomorInduk: string;
+  items: DocumentItem[];
+  canWrite: boolean;
+  busy: boolean;
+  error: string | null;
+  onBusy: (value: boolean) => void;
+  onError: (value: string | null) => void;
+  onChange: (items: DocumentItem[]) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [judul, setJudul] = useState("");
+  const [keterangan, setKeterangan] = useState("");
+
+  async function uploadDocument() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) {
+      onError("Pilih berkas PDF terlebih dahulu.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (judul.trim()) formData.append("judul", judul.trim());
+    if (keterangan.trim()) formData.append("keterangan", keterangan.trim());
+
+    onBusy(true);
+    onError(null);
+    const result = await apiPostFormData<DocumentItem>(
+      `/identitas/${encodeURIComponent(nomorInduk)}/documents`,
+      formData,
+    );
+    onBusy(false);
+
+    if (isApiFail(result)) {
+      onError(result.message);
+      return;
+    }
+
+    onChange([result, ...items]);
+    setJudul("");
+    setKeterangan("");
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function removeDocument(id: string) {
+    onBusy(true);
+    onError(null);
+    const result = await apiDeleteJson<{ ok: boolean }>(`/documents/${encodeURIComponent(id)}`);
+    onBusy(false);
+
+    if (isApiFail(result)) {
+      onError(result.message);
+      return;
+    }
+
+    onChange(items.filter((item) => item.id !== id));
+  }
+
+  return (
+    <>
+      <div className="content-card-header">
+        <Icon name="file-text" size={18} className="section-icon" />
+        <h3>Dokumen Lampiran (PDF, maks. 2 MB)</h3>
+      </div>
+
+      {error ? (
+        <div className="form-alert" role="alert">
+          <Icon name="alert-triangle" size={16} />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {items.length === 0 ? (
+        <div className="empty-panel-notice">
+          <Icon name="file-text" size={15} />
+          <span>Belum ada dokumen PDF yang dilampirkan.</span>
+        </div>
+      ) : (
+        <div className="table-scroll-container">
+          <table className="modern-table">
+            <thead>
+              <tr>
+                <th scope="col">Judul</th>
+                <th scope="col">Keterangan</th>
+                <th scope="col">Berkas</th>
+                <th scope="col" className="col-actions">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((doc) => (
+                <tr key={doc.id}>
+                  <td>{doc.judul || "—"}</td>
+                  <td>{doc.keterangan || "—"}</td>
+                  <td>{doc.namaFile || "—"}</td>
+                  <td className="col-actions">
+                    <div className="action-button-group">
+                      <a href={doc.downloadUrl} className="btn btn-secondary btn-sm" download>
+                        Unduh
+                      </a>
+                      <a href={doc.viewUrl} className="btn btn-secondary btn-sm" target="_blank" rel="noreferrer">
+                        Lihat
+                      </a>
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={busy}
+                          onClick={() => removeDocument(doc.id)}
+                        >
+                          Hapus
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {canWrite ? (
+        <div className="form-section-group">
+          <h4 className="form-section-title">Tambah Dokumen</h4>
+          <div className="form-grid-2col">
+            <Field label="Judul">
+              <input
+                type="text"
+                value={judul}
+                onChange={(event) => setJudul(event.target.value)}
+                className="form-modern-input"
+                placeholder="Judul dokumen"
+                disabled={busy}
+              />
+            </Field>
+            <Field label="Keterangan">
+              <input
+                type="text"
+                value={keterangan}
+                onChange={(event) => setKeterangan(event.target.value)}
+                className="form-modern-input"
+                placeholder="Keterangan (opsional)"
+                disabled={busy}
+              />
+            </Field>
+          </div>
+          <Field label="Berkas PDF">
+            <input ref={fileRef} type="file" accept="application/pdf,.pdf" disabled={busy} />
+          </Field>
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={uploadDocument}>
+            <Icon name="upload" size={13} />
+            <span>{busy ? "Menyimpan…" : "Unggah Dokumen"}</span>
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+// -------------------------------------------------------------
+// Helper Formatters
+// -------------------------------------------------------------
+function getInitials(name?: string | null): string {
+  if (!name) return "—";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// -------------------------------------------------------------
+// Hero Avatar Component with Fallback
+// -------------------------------------------------------------
+export function HeroAvatar({
+  src,
+  name,
+}: {
+  src?: string | null;
+  name?: string | null;
+}) {
+  const [hasError, setHasError] = useState(!src);
+
+  useEffect(() => {
+    setHasError(!src);
+  }, [src]);
+
+  return (
+    <div className="hero-avatar-frame">
+      {src && !hasError ? (
+        <img
+          src={src}
+          alt=""
+          onError={() => setHasError(true)}
+          className="hero-avatar-img"
+          loading="lazy"
+        />
+      ) : (
+        <div className="hero-avatar-placeholder">
+          <div className="hero-initials-badge">
+            {getInitials(name)}
+          </div>
+          <span className="hero-placeholder-label">Foto Belum Rekam</span>
+        </div>
+      )}
+      <div className="hero-photo-tag">Foto Utama</div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// Form Components
+// -------------------------------------------------------------
+export function Field({
+  label,
+  error,
+  required,
+  children,
+}: {
+  label: string;
+  error?: string;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="form-group-field">
+      <label className="form-field-header">
+        <span className="form-field-label-text">
+          {label}
+          {required ? <span className="text-required-mark"> *</span> : null}
+        </span>
+      </label>
+      {children}
+      {error ? <span className="form-field-error-msg">{error}</span> : null}
+    </div>
+  );
+}
+
+export function LockedField({
+  label,
+  value,
+  helperText,
+}: {
+  label: string;
+  value: string;
+  helperText?: string;
+}) {
+  return (
+    <div className="form-group-field">
+      <div className="form-field-header">
+        <span className="form-field-label-text">{label}</span>
+        <span className="locked-badge">
+          <Icon name="lock" size={11} />
+          <span>Sistem</span>
+        </span>
+      </div>
+      <div className="locked-field-input-box">
+        <code className="monospace-locked-val">{value}</code>
+      </div>
+      {helperText ? <span className="form-field-helper-txt">{helperText}</span> : null}
+    </div>
+  );
+}
+
+export function Text({
+  name,
+  label,
+  defaultValue,
+  error,
+  disabled,
+  required,
+  maxLength,
+  placeholder,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  error?: string;
+  disabled?: boolean;
+  required?: boolean;
+  maxLength?: number;
+  placeholder?: string;
+}) {
+  return (
+    <Field label={label} error={error} required={required}>
+      <input
+        className={`form-modern-input ${error ? "has-input-error" : ""}`}
+        name={name}
+        defaultValue={defaultValue}
+        disabled={disabled}
+        required={required}
+        maxLength={maxLength}
+        placeholder={placeholder}
+      />
+    </Field>
+  );
+}
+
+export function Area({
+  name,
+  label,
+  defaultValue,
+  error,
+  disabled,
+  required,
+  placeholder,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string;
+  error?: string;
+  disabled?: boolean;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <Field label={label} error={error} required={required}>
+      <textarea
+        className={`form-modern-textarea ${error ? "has-input-error" : ""}`}
+        name={name}
+        defaultValue={defaultValue}
+        disabled={disabled}
+        required={required}
+        placeholder={placeholder}
+        rows={3}
+      />
+    </Field>
+  );
+}
+
+export function Select({
+  name,
+  label,
+  items,
+  defaultValue,
+  disabled,
+  required,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  items: LookupItem[] | undefined;
+  defaultValue: string;
+  disabled?: boolean;
+  required?: boolean;
+  onChange?: (value: string) => void;
+}) {
+  return (
+    <Field label={label} required={required}>
+      <div className="select-wrapper-styled">
+        <select
+          className="form-modern-select"
+          name={name}
+          defaultValue={defaultValue}
+          disabled={disabled}
+          onChange={(event) => onChange?.(event.target.value)}
+        >
+          <option value="">— Pilih {label} —</option>
+          {(items ?? []).map((item) => (
+            <option key={`${name}-${item.id}`} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </Field>
+  );
+}
+
+export function CheckCard({
+  name,
+  label,
+  description,
+  defaultChecked,
+  disabled,
+}: {
+  name: string;
+  label: string;
+  description?: string;
+  defaultChecked: boolean;
+  disabled?: boolean;
+}) {
+  const [checked, setChecked] = useState(defaultChecked);
+
+  return (
+    <label className={`checkbox-card-box ${checked ? "is-checked" : ""} ${disabled ? "is-disabled" : ""}`}>
+      <input type="hidden" name={name} value="0" />
+      <input
+        type="checkbox"
+        name={name}
+        value="1"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => setChecked(e.target.checked)}
+        className="sr-only"
+      />
+      <div className="custom-checkbox-indicator">
+        {checked ? <Icon name="check" size={12} /> : null}
+      </div>
+      <div className="checkbox-text-stack">
+        <span className="checkbox-main-label">{label}</span>
+        {description ? <span className="checkbox-sub-desc">{description}</span> : null}
+      </div>
+    </label>
+  );
+}
+
+export function CiriSlot({
+  num,
+  textName,
+  fileName,
+  textValue,
+  photoUrl,
+  error,
+  disabled,
+}: {
+  num: number;
+  textName: string;
+  fileName: string;
+  textValue: string;
+  photoUrl?: string | null;
+  error?: string;
+  disabled?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(photoUrl ?? null);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setPreview(photoUrl ?? null);
+    setImgError(false);
+  }, [photoUrl]);
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+      setImgError(false);
+    }
+  };
+
+  return (
+    <div className="ciri-slot-card">
+      <div className="ciri-slot-header">
+        <span className="ciri-slot-badge">Ciri Khusus #{num}</span>
+      </div>
+
+      <div className="ciri-slot-body">
+        <div className="ciri-preview-thumbnail">
+          {preview && !imgError ? (
+            <img
+              src={preview}
+              alt=""
+              onError={() => setImgError(true)}
+              className="ciri-img-preview"
+              loading="lazy"
+            />
+          ) : (
+            <div className="ciri-empty-placeholder">
+              <Icon name="camera" size={20} />
+              <span>Belum Ada Foto Ciri</span>
+            </div>
+          )}
+        </div>
+
+        <div className="ciri-fields-stack">
+          <Field label={`Deskripsi Ciri Khusus ${num}`} error={error}>
+            <textarea
+              name={textName}
+              defaultValue={textValue}
+              disabled={disabled}
+              rows={2}
+              className="form-modern-textarea"
+              placeholder={`Contoh: Tato motif naga di lengan kanan / bekas luka di pelipis`}
+            />
+          </Field>
+
+          <div className="file-upload-input-row">
+            <AmbilFotoButton
+              inputRef={inputRef}
+              fileName={`ciri${num}.jpg`}
+              disabled={disabled}
+              className="btn-file-upload"
+            />
+            <label className="btn-file-upload">
+              <Icon name="upload" size={13} />
+              <span>Unggah / Ganti Foto Ciri</span>
+              <input
+                ref={inputRef}
+                type="file"
+                name={fileName}
+                accept="image/*"
+                disabled={disabled}
+                onChange={handleFileChange}
+                className="sr-only"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function assignFileToInput(input: HTMLInputElement | null, file: File) {
+  if (!input) return;
+  const data = new DataTransfer();
+  data.items.add(file);
+  input.files = data.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+export function AmbilFotoButton({
+  inputRef,
+  fileName,
+  disabled,
+  className = "btn-angle-upload-trigger",
+}: {
+  inputRef: RefObject<HTMLInputElement | null>;
+  fileName: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const deviceIdRef = useRef("");
+  const [open, setOpen] = useState(false);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [deviceId, setDeviceId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
+  const listCameras = async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videos = devices.filter((device) => device.kind === "videoinput" && device.deviceId);
+    setCameras(videos);
+    return videos;
+  };
+
+  const startCamera = async (id?: string) => {
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setError("Kamera hanya tersedia di HTTPS atau localhost.");
+      return;
+    }
+
+    const preferred = id || deviceIdRef.current;
+    setError(null);
+    stopCamera();
+
+    const videoConstraint = preferred
+      ? { deviceId: { exact: preferred }, width: { ideal: 640 }, height: { ideal: 480 } }
+      : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } };
+
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraint });
+      } catch {
+        if (!preferred) throw new Error("camera");
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        });
+      }
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+
+      await listCameras();
+      const current = stream.getVideoTracks()[0]?.getSettings().deviceId ?? preferred ?? "";
+      if (current) {
+        deviceIdRef.current = current;
+        setDeviceId(current);
+      }
+    } catch {
+      setError("Kamera tidak dapat dibuka. Izinkan akses kamera di peramban.");
+    }
+  };
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open) {
+      stopCamera();
+      if (dialog?.open) dialog.close();
+      return;
+    }
+
+    if (dialog && !dialog.open) dialog.showModal();
+    void startCamera(deviceIdRef.current || undefined);
+
+    const onDeviceChange = () => {
+      void listCameras();
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
+
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
+      stopCamera();
+    };
+  }, [open]);
+
+  const snap = async () => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) {
+      setError("Gambar kamera belum siap.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas");
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+      if (!blob) throw new Error("blob");
+      assignFileToInput(inputRef.current, new File([blob], fileName, { type: "image/jpeg" }));
+      setOpen(false);
+    } catch {
+      setError("Gagal mengambil foto.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" className={className} disabled={disabled} onClick={() => setOpen(true)}>
+        <Icon name="camera" size={13} />
+        <span>Ambil Foto</span>
+      </button>
+      <dialog
+        ref={dialogRef}
+        className="ambil-foto-dialog"
+        onCancel={(event) => {
+          event.preventDefault();
+          setOpen(false);
+        }}
+      >
+        <div className="ambil-foto-header">
+          <h3>Ambil Foto</h3>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(false)}>
+            Tutup
+          </button>
+        </div>
+        <video ref={videoRef} className="ambil-foto-video" autoPlay playsInline muted />
+        {cameras.length > 0 ? (
+          <label className="ambil-foto-camera">
+            <span>Sumber kamera</span>
+            <select
+              value={cameras.some((camera) => camera.deviceId === deviceId) ? deviceId : cameras[0]?.deviceId ?? ""}
+              onChange={(event) => {
+                const next = event.target.value;
+                deviceIdRef.current = next;
+                setDeviceId(next);
+                void startCamera(next);
+              }}
+            >
+              {cameras.map((camera, index) => (
+                <option key={camera.deviceId || String(index)} value={camera.deviceId}>
+                  {camera.label || `Kamera ${index + 1}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {error ? <p className="angle-error-msg">{error}</p> : null}
+        <div className="ambil-foto-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+            Batal
+          </button>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void snap()}>
+            Ambil Foto
+          </button>
+        </div>
+      </dialog>
+    </>
+  );
+}
+
+export function PhotoUploadAngleCard({
+  angleKey,
+  title,
+  subtitle,
+  previewUrl,
+  error,
+  disabled,
+  required,
+}: {
+  angleKey: string;
+  title: string;
+  subtitle: string;
+  previewUrl?: string | null;
+  error?: string;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [currentPreview, setCurrentPreview] = useState<string | null>(previewUrl ?? null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setCurrentPreview(previewUrl ?? null);
+    setImgError(false);
+  }, [previewUrl]);
+
+  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFileName(file.name);
+      const url = URL.createObjectURL(file);
+      setCurrentPreview(url);
+      setImgError(false);
+    }
+  };
+
+  return (
+    <div className={`photo-angle-upload-card ${error ? "has-card-error" : ""}`}>
+      <div className="angle-card-top-bar">
+        <div className="angle-title-stack">
+          <span className="angle-badge-label">{title}</span>
+          <span className="angle-subtitle">{subtitle}</span>
+        </div>
+        {required && (!previewUrl || imgError) && !selectedFileName ? (
+          <span className="tag-required-pill">Wajib</span>
+        ) : null}
+      </div>
+
+      <div className="angle-photo-viewport">
+        {currentPreview && !imgError ? (
+          <img
+            src={currentPreview}
+            alt=""
+            onError={() => setImgError(true)}
+            className="angle-img-rendered"
+            loading="lazy"
+          />
+        ) : (
+          <div className="angle-empty-view">
+            <div className="angle-empty-icon">
+              <Icon name="camera" size={28} />
+            </div>
+            <span className="angle-empty-txt">Foto Belum Diunggah</span>
+          </div>
+        )}
+      </div>
+
+      <div className="angle-upload-footer">
+        <div className="angle-upload-actions">
+          <AmbilFotoButton inputRef={inputRef} fileName={`${angleKey}.jpg`} disabled={disabled} />
+          <label className="btn-angle-upload-trigger">
+            <Icon name="upload" size={13} />
+            <span>{currentPreview && !imgError ? "Ganti Foto" : "Pilih Berkas"}</span>
+            <input
+              ref={inputRef}
+              type="file"
+              name={angleKey}
+              accept="image/*"
+              disabled={disabled}
+              required={required && (!previewUrl || imgError) && !selectedFileName}
+              onChange={handleFile}
+              className="sr-only"
+            />
+          </label>
+        </div>
+        {selectedFileName ? (
+          <span className="selected-filename-tag" title={selectedFileName}>
+            {selectedFileName}
+          </span>
+        ) : null}
+      </div>
+
+      {error ? <span className="angle-error-msg">{error}</span> : null}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// SVG Icon Renderer
+// -------------------------------------------------------------
+export function Icon({
+  name,
+  size = 16,
+  className = "",
+}: {
+  name: IconName;
+  size?: number;
+  className?: string;
+}) {
+  let paths: ReactNode;
+
+  switch (name) {
+    case "activity":
+      paths = <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />;
+      break;
+    case "alert-triangle":
+      paths = (
+        <>
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </>
+      );
+      break;
+    case "arrow-left":
+      paths = (
+        <>
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </>
+      );
+      break;
+    case "award":
+      paths = (
+        <>
+          <circle cx="12" cy="8" r="7" />
+          <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+        </>
+      );
+      break;
+    case "briefcase":
+      paths = (
+        <>
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </>
+      );
+      break;
+    case "calendar":
+      paths = (
+        <>
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </>
+      );
+      break;
+    case "camera":
+      paths = (
+        <>
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </>
+      );
+      break;
+    case "check":
+      paths = <polyline points="20 6 9 17 4 12" />;
+      break;
+    case "clock":
+      paths = (
+        <>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </>
+      );
+      break;
+    case "edit":
+      paths = (
+        <>
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </>
+      );
+      break;
+    case "eye":
+      paths = (
+        <>
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      );
+      break;
+    case "file-text":
+      paths = (
+        <>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </>
+      );
+      break;
+    case "fingerprint":
+      paths = (
+        <>
+          <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4" />
+          <path d="M5 19.5C5.5 18 6 15 6 12c0-.7.1-1.4.3-2" />
+          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
+          <path d="M8.65 22c.21-.66.45-1.32.75-2" />
+          <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
+          <path d="M2 16h.01" />
+          <path d="M21.8 16c.2-2 .131-5.354 0-6" />
+          <path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2" />
+        </>
+      );
+      break;
+    case "heart":
+      paths = (
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+      );
+      break;
+    case "id-card":
+      paths = (
+        <>
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <circle cx="8" cy="12" r="2" />
+          <path d="M14 9h4" />
+          <path d="M14 12h4" />
+          <path d="M14 15h2" />
+        </>
+      );
+      break;
+    case "layers":
+      paths = (
+        <>
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </>
+      );
+      break;
+    case "lock":
+      paths = (
+        <>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </>
+      );
+      break;
+    case "map-pin":
+      paths = (
+        <>
+          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+          <circle cx="12" cy="10" r="3" />
+        </>
+      );
+      break;
+    case "phone":
+      paths = (
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+      );
+      break;
+    case "shield":
+      paths = <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />;
+      break;
+    case "trash":
+      paths = (
+        <>
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </>
+      );
+      break;
+    case "upload":
+      paths = (
+        <>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </>
+      );
+      break;
+    case "users":
+      paths = (
+        <>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </>
+      );
+      break;
+  }
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {paths}
+    </svg>
+  );
+}

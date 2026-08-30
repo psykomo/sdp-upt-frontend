@@ -7,6 +7,7 @@ export default [
   layout("routes/app-layout.tsx", [
     route("identitas", "routes/identitas.tsx"),
     route("identitas/export", "routes/identitas-export.ts"),
+    route("identitas/baru", "routes/identitas-baru.tsx"),
     route("identitas/:nomorInduk/ubah", "routes/identitas-ubah.tsx"),
     route("identitas/:nomorInduk/hapus", "routes/identitas-hapus.tsx"),
     route("identitas/:nomorInduk", "routes/identitas-detail.tsx"),

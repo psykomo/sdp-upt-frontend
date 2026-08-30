@@ -1,17 +1,11 @@
 import { Form, Link, isRouteErrorResponse, redirect, useNavigation } from "react-router";
 import { useState } from "react";
-import { apiGet, failData, isApiFail, apiPutJson } from "../lib/session";
-import type { Route } from "./+types/identitas-ubah";
+import { apiGet, apiPostJson, failData, isApiFail } from "../lib/session";
+import type { Route } from "./+types/identitas-baru";
+import { HeroAvatar, Icon, IdentitasFormTabs } from "./identitas-form-fields";
 import {
-  DokumenPanel,
-  HeroAvatar,
-  Icon,
-  IdentitasFormTabs,
-  type DocumentItem,
-} from "./identitas-form-fields";
-import {
-  DOKUMEN_TAB,
   FORM_TABS,
+  type CreateMatch,
   type FormTabId,
   type FormValues,
   type LookupItem,
@@ -21,44 +15,41 @@ import {
 } from "./identitas-form-shared";
 
 type Access = { level: string; canWrite: boolean; canDelete: boolean; canPrint: boolean };
-type UbahForm = {
-  nomorInduk: string;
+type BaruForm = {
+  nomorInduk: string | null;
   namaLengkap: string | null;
   isTahanan: boolean;
   access: Access;
   readOnly: boolean;
   canEditSensitiveFields?: boolean;
   lockedFields?: string[];
-  case: {
-    nomorBerkas: string;
-    nomorRegistrasi: string;
-    jenisRegistrasi: string;
-    kejahatan: string;
-    statusPenghuni: string;
-    statusSubPenghuni: string;
-  };
-  links: { lihat: string; rekamSidikJari: string };
+  case: null;
+  links: { kembali: string };
   values: FormValues;
   foto: Record<string, string | null>;
   sidikJari: Record<string, string | null>;
   identitasLama: SimilarItem[];
-  documents?: DocumentItem[];
   lookups: Record<string, LookupItem[]>;
 };
 
-type ActionResult = { ok: false; message: string; errors: Record<string, string> };
+type ActionResult = {
+  ok: false;
+  message: string;
+  errors: Record<string, string>;
+  matches?: CreateMatch[];
+  status?: number;
+};
 
-export function meta({ loaderData }: Route.MetaArgs) {
-  const nama = loaderData?.namaLengkap ? ` — ${loaderData.namaLengkap}` : "";
-  return [{ title: `Ubah Identitas${nama} — SDP 4.0` }];
+export function meta() {
+  return [{ title: "Tambah Identitas — SDP 4.0" }];
 }
 
-export async function clientLoader({ request, params }: Route.ClientLoaderArgs) {
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   try {
-    return await apiGet<UbahForm>(`/identitas/${encodeURIComponent(params.nomorInduk)}/form`, request);
+    return await apiGet<BaruForm>("/identitas/form", request);
   } catch (error) {
     if (isFormForbidden(error)) {
-      throw redirect(`/identitas/${encodeURIComponent(params.nomorInduk)}`);
+      throw redirect("/identitas");
     }
     throw error;
   }
@@ -78,24 +69,20 @@ function isFormForbidden(error: unknown): boolean {
   );
 }
 
-export async function clientAction({ request, params }: Route.ClientActionArgs) {
+export async function clientAction({ request }: Route.ClientActionArgs) {
   const form = await request.formData();
   const payload = await buildIdentitasPayload(form);
 
-  const result = await apiPutJson<{ nomorInduk: string }>(
-    `/identitas/${encodeURIComponent(params.nomorInduk)}`,
-    payload,
-    request,
-  );
+  const result = await apiPostJson<{ nomorInduk: string }>("/identitas", payload, request);
 
   if (isApiFail(result)) {
     return failData(result);
   }
 
-  throw redirect(`/identitas/${encodeURIComponent(params.nomorInduk)}`);
+  throw redirect(`/identitas/${encodeURIComponent(result.nomorInduk)}`);
 }
 
-export default function IdentitasUbahPage({ loaderData, actionData }: Route.ComponentProps) {
+export default function IdentitasBaruPage({ loaderData, actionData }: Route.ComponentProps) {
   const d = loaderData;
   const v = d.values;
   const navigation = useNavigation();
@@ -115,155 +102,125 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
   const [keahlian2, setKeahlian2] = useState(String(v.keahlian2 ?? ""));
   const [residivis, setResidivis] = useState(String(v.residivis ?? ""));
   const [similarList, setSimilarList] = useState(d.identitasLama);
-  const [documents, setDocuments] = useState<DocumentItem[]>(d.documents ?? []);
-  const [docError, setDocError] = useState<string | null>(null);
-  const [docBusy, setDocBusy] = useState(false);
   const similarCsv = similarList.map((item) => item.nomorInduk).join(",");
-  const errors = actionData?.errors ?? {};
-  const tabs = [...FORM_TABS, DOKUMEN_TAB];
+  const errors = (actionData as ActionResult | undefined)?.errors ?? {};
+  const matches = (actionData as ActionResult | undefined)?.matches ?? [];
+  const displayName = str(v.namaLengkap) || "Identitas Baru";
 
   return (
     <main className="modern-page-shell detail-container">
       <nav className="detail-top-nav" aria-label="Navigasi Halaman">
-        <Link to={`/identitas/${d.nomorInduk}`} className="btn-back-link">
+        <Link to="/identitas" className="btn-back-link">
           <Icon name="arrow-left" size={14} />
-          <span>Kembali ke Detail WBP</span>
+          <span>Kembali ke Direktori</span>
         </Link>
         <div className="detail-breadcrumbs">
           <span>SDP 4.0</span>
           <span className="separator">/</span>
           <Link to="/identitas">Manajemen Identitas</Link>
           <span className="separator">/</span>
-          <Link to={`/identitas/${d.nomorInduk}`}>Detail WBP</Link>
-          <span className="separator">/</span>
-          <span className="current">Ubah Identitas</span>
+          <span className="current">Tambah Identitas</span>
         </div>
       </nav>
 
       <header className="detail-hero-card">
         <div className="hero-left-section">
-          <HeroAvatar src={d.foto.depan} name={d.namaLengkap} />
+          <HeroAvatar src={d.foto.depan} name={displayName} />
 
           <div className="hero-info-stack">
             <div className="hero-title-row">
-              <h1 className="hero-wbp-name">{d.namaLengkap || "—"}</h1>
+              <h1 className="hero-wbp-name">Tambah Identitas</h1>
               <div className="hero-status-pills">
-                {d.isTahanan ? (
-                  <span className="tag-pill tag-tahanan">Tahanan</span>
-                ) : (
-                  <span className="tag-pill tag-napi">Narapidana</span>
-                )}
-                {d.readOnly ? (
-                  <span className="status-badge status-unverified">
-                    <Icon name="lock" size={12} />
-                    <span>Mode Baca (Terkunci)</span>
-                  </span>
-                ) : (
-                  <span className="status-badge status-verified">
-                    <span className="status-dot" />
-                    <span>Form Edit Aktif</span>
-                  </span>
-                )}
+                <span className="status-badge status-verified">
+                  <span className="status-dot" />
+                  <span>Form Tambah Aktif</span>
+                </span>
               </div>
             </div>
 
             <div className="hero-id-tags-row">
               <div className="id-tag-item">
                 <span className="id-tag-label">No. Induk</span>
-                <code className="monospace-id-tag">{d.nomorInduk}</code>
+                <code className="monospace-id-tag">Autogenerate</code>
               </div>
-              {str(v.nik) ? (
-                <div className="id-tag-item">
-                  <span className="id-tag-label">NIK KTP</span>
-                  <code className="monospace-reg-tag">{str(v.nik)}</code>
-                </div>
-              ) : null}
-              {d.case.nomorRegistrasi ? (
-                <div className="id-tag-item">
-                  <span className="id-tag-label">No. Registrasi</span>
-                  <code className="monospace-reg-tag">{d.case.nomorRegistrasi}</code>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="hero-chips-row">
-              {d.case.jenisRegistrasi ? (
-                <span className="meta-chip">
-                  <Icon name="layers" size={13} />
-                  <span>Registrasi: <strong>{d.case.jenisRegistrasi}</strong></span>
-                </span>
-              ) : null}
-              {d.case.kejahatan ? (
-                <span className="meta-chip chip-warning">
-                  <Icon name="activity" size={13} />
-                  <span>Kejahatan: <strong>{d.case.kejahatan}</strong></span>
-                </span>
-              ) : null}
             </div>
           </div>
         </div>
 
         <div className="hero-actions-section">
           <div className="hero-action-buttons">
-            <Link to={`/identitas/${d.nomorInduk}`} className="btn btn-secondary">
+            <Link to="/identitas" className="btn btn-secondary">
               <span>Batal</span>
             </Link>
             {!d.readOnly ? (
               <button
                 type="submit"
-                form="form-ubah-identitas"
+                form="form-baru-identitas"
                 className="btn btn-primary"
                 disabled={disabled}
               >
                 <Icon name="check" size={14} />
-                <span>{saving ? "Menyimpan…" : "Simpan Perubahan"}</span>
+                <span>{saving ? "Menyimpan…" : "Simpan Identitas"}</span>
               </button>
             ) : null}
           </div>
 
           <div className="hero-meta-indicator">
-            <span className="form-mode-label">
-              {d.readOnly ? "Akses Terbatas: Hanya Baca" : "Pemutakhiran Data WBP"}
-            </span>
+            <span className="form-mode-label">Pendaftaran Identitas WBP Baru</span>
           </div>
         </div>
       </header>
-
-      {d.readOnly ? (
-        <div className="empty-panel-notice" role="alert">
-          <Icon name="lock" size={16} />
-          <span>Pusat/Kanwil atau hak akses baca tidak dapat mengubah identitas. Form ini disajikan dalam mode tampilan saja.</span>
-        </div>
-      ) : null}
-
-      {!d.canEditSensitiveFields && !d.readOnly ? (
-        <div className="empty-panel-notice" role="alert">
-          <Icon name="shield" size={16} />
-          <span>
-            Tanggal lahir, kewarganegaraan, dan agama terkunci karena remisi sudah diproses.
-            Buka jendela akses Sidang TPP (AKSES002) untuk mengubahnya.
-          </span>
-        </div>
-      ) : null}
 
       {actionData?.message ? (
         <div className="form-alert" role="alert">
           <Icon name="alert-triangle" size={18} />
           <div className="form-alert-content">
-            <strong>Gagal Menyimpan Perubahan</strong>
+            <strong>
+              {(actionData as ActionResult).status === 409
+                ? "Ditemukan Identitas Mirip"
+                : "Gagal Menyimpan Identitas"}
+            </strong>
             <p>{actionData.message}</p>
           </div>
         </div>
       ) : null}
 
+      {matches.length > 0 ? (
+        <section className="content-card" aria-label="Identitas mirip">
+          <div className="content-card-header">
+            <Icon name="users" size={18} className="section-icon" />
+            <h3>Identitas yang Mirip</h3>
+          </div>
+          <div className="identitas-lama-grid">
+            {matches.map((item) => (
+              <div key={item.nomorInduk} className="identitas-lama-card">
+                <div className="lama-info">
+                  <Link to={`/identitas/${item.nomorInduk}`} className="lama-name-link">
+                    {item.namaLengkap || item.nomorInduk}
+                  </Link>
+                  <code className="monospace-id-tag">{item.nomorInduk}</code>
+                  {item.tanggalLahir ? (
+                    <span className="form-field-helper-txt">Lahir: {item.tanggalLahir}</span>
+                  ) : null}
+                </div>
+                <Link to={`/identitas/${item.nomorInduk}`} className="btn btn-secondary btn-sm">
+                  <Icon name="eye" size={13} />
+                  <span>Lihat</span>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <Form
-        id="form-ubah-identitas"
+        id="form-baru-identitas"
         method="post"
         encType="multipart/form-data"
         className="ubah-form"
         noValidate
       >
-        <input type="hidden" name="nomorInduk" value={d.nomorInduk} />
+        <input type="hidden" name="nomorInduk" value="" />
         <input type="hidden" name="idSidikJari" defaultValue={str(v.idSidikJari)} />
         <input type="hidden" name="nomorIndukSimilar" value={similarCsv} />
         <input type="hidden" name="fotoKiriPath" defaultValue={str(v.fotoKiriPath)} />
@@ -277,17 +234,17 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
         <IdentitasFormTabs
           tab={tab}
           onTabChange={setTab}
-          tabs={tabs}
+          tabs={[...FORM_TABS]}
           values={v}
           lookups={d.lookups}
           foto={d.foto}
           errors={errors}
           disabled={disabled}
           inputDisabled={inputDisabled}
-          nomorInduk={d.nomorInduk}
-          nomorIndukDisplay={d.nomorInduk}
-          nomorIndukHelper="Nomor Induk digenerate otomatis dan tidak dapat diubah"
-          rekamSidikJariHref={d.links.rekamSidikJari}
+          nomorInduk=""
+          nomorIndukDisplay="Autogenerate"
+          nomorIndukHelper="Nomor Induk digenerate otomatis saat data disimpan"
+          rekamSidikJariHref=""
           similarList={similarList}
           onSimilarChange={setSimilarList}
           canWriteSimilar={d.access.canWrite && !d.readOnly}
@@ -309,29 +266,16 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
           setKeahlian2={setKeahlian2}
           residivis={residivis}
           setResidivis={setResidivis}
-        >
-          <section className="content-card" hidden={tab !== "dokumen"}>
-            <DokumenPanel
-              nomorInduk={d.nomorInduk}
-              items={documents}
-              canWrite={d.access.canWrite && !d.readOnly}
-              busy={docBusy}
-              error={docError}
-              onBusy={setDocBusy}
-              onError={setDocError}
-              onChange={setDocuments}
-            />
-          </section>
-        </IdentitasFormTabs>
+        />
 
         <div className="ubah-sticky-footer">
           <div className="footer-status-indicator">
-            <span className="footer-wbp-name">{d.namaLengkap || "—"}</span>
-            <span className="footer-id-badge">{d.nomorInduk}</span>
+            <span className="footer-wbp-name">Identitas Baru</span>
+            <span className="footer-id-badge">Autogenerate</span>
           </div>
 
           <div className="footer-action-buttons">
-            <Link to={`/identitas/${d.nomorInduk}`} className="btn btn-secondary">
+            <Link to="/identitas" className="btn btn-secondary">
               <span>Batal</span>
             </Link>
             {!d.readOnly ? (
@@ -341,7 +285,7 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
                 disabled={disabled}
               >
                 <Icon name="check" size={15} />
-                <span>{saving ? "Menyimpan Perubahan…" : "Simpan Perubahan Identitas"}</span>
+                <span>{saving ? "Menyimpan…" : "Simpan Identitas Baru"}</span>
               </button>
             ) : null}
           </div>
@@ -352,11 +296,10 @@ export default function IdentitasUbahPage({ loaderData, actionData }: Route.Comp
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const notFound = isRouteErrorResponse(error) && error.status === 404;
   const forbidden = isRouteErrorResponse(error) && error.status === 403;
   const message = isRouteErrorResponse(error)
     ? String(error.data || error.statusText)
-    : "Terjadi kesalahan saat memuat formulir ubah identitas.";
+    : "Terjadi kesalahan saat memuat formulir tambah identitas.";
 
   return (
     <main className="modern-page-shell">
@@ -365,11 +308,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           <Icon name="alert-triangle" size={24} />
         </div>
         <h3 className="empty-title">
-          {notFound
-            ? "Data WBP Tidak Ditemukan"
-            : forbidden
-              ? "Akses Ditolak — Hak Akses Tidak Memadai"
-              : "Gagal Memuat Formulir"}
+          {forbidden ? "Akses Ditolak — Hak Akses Tidak Memadai" : "Gagal Memuat Formulir"}
         </h3>
         <p className="empty-desc">{message}</p>
         <Link to="/identitas" className="btn btn-secondary">

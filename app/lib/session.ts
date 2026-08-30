@@ -172,6 +172,7 @@ export type ApiFail = {
   status: number;
   message: string;
   errors: Record<string, string>;
+  matches?: Array<Record<string, unknown>>;
 };
 
 export function isApiFail(value: unknown): value is ApiFail {
@@ -191,6 +192,7 @@ export function failData(fail: ApiFail) {
       status: fail.status,
       message: fail.message,
       errors: fail.errors,
+      ...(fail.matches ? { matches: fail.matches } : {}),
     },
     { status: fail.status },
   );
@@ -205,6 +207,7 @@ async function readWriteBody<T>(res: Response): Promise<T | ApiFail> {
     ok: boolean;
     message?: string;
     errors?: Record<string, string>;
+    matches?: Array<Record<string, unknown>>;
     data?: T;
   };
   try {
@@ -212,6 +215,7 @@ async function readWriteBody<T>(res: Response): Promise<T | ApiFail> {
       ok: boolean;
       message?: string;
       errors?: Record<string, string>;
+      matches?: Array<Record<string, unknown>>;
       data?: T;
     };
   } catch {
@@ -224,6 +228,7 @@ async function readWriteBody<T>(res: Response): Promise<T | ApiFail> {
       status: res.status,
       message: body.message ?? "Permintaan API gagal.",
       errors: body.errors ?? {},
+      ...(body.matches ? { matches: body.matches } : {}),
     };
   }
 

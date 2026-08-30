@@ -60,6 +60,7 @@ type SearchResult = {
   };
   access: Access;
   columns: string[];
+  links?: { tambah: string };
 };
 
 const FIELDS = [
@@ -149,6 +150,16 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 function lastParam(params: URLSearchParams, key: string, fallback: string) {
   const all = params.getAll(key);
   return all.length > 0 ? all[all.length - 1] : fallback;
+}
+
+/** Prefer path for SPA <Link>; API may return absolute frontend URLs. */
+function spaPath(href: string): string {
+  if (!href.startsWith("http://") && !href.startsWith("https://")) return href;
+  try {
+    return new URL(href).pathname || "/identitas/baru";
+  } catch {
+    return "/identitas/baru";
+  }
 }
 
 function qs(current: URLSearchParams, patch: Record<string, string | number | undefined>) {
@@ -242,13 +253,13 @@ export default function IdentitasPage({ loaderData }: Route.ComponentProps) {
           </Link>
 
           {access.canWrite ? (
-            <a
-              href={items[0]?.links.tambah ?? `${legacyBase}/AddIdentitas`}
+            <Link
+              to={spaPath(result.links?.tambah || items[0]?.links.tambah || "/identitas/baru")}
               className="btn btn-primary"
             >
               <Icon name="plus" size={15} />
               <span>Tambah Identitas</span>
-            </a>
+            </Link>
           ) : null}
         </div>
       </header>
