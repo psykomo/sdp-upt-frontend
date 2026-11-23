@@ -1,9 +1,10 @@
-import { Form, Link, Outlet, isRouteErrorResponse, useLocation, useNavigation } from "react-router";
+import { Form, Link, NavLink, Outlet, isRouteErrorResponse, useLocation, useNavigation } from "react-router";
 import { useState, useEffect } from "react";
 import { apiGet, apiSetWorkingScope, publicLegacyBase } from "../lib/session";
 import type { Route } from "./+types/app-layout";
 
 type LookupItem = { id: string; label: string; kanwilId?: string };
+type PortedMenu = { id: string; key: string; label: string; path: string; icon: string };
 
 type Me = {
   user: {
@@ -17,6 +18,8 @@ type Me = {
     sessionFilterUptId?: string | null;
     sessionFilterKanwilId?: string | null;
   };
+  hasLegacyHost?: boolean;
+  menus?: PortedMenu[];
 };
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
@@ -67,10 +70,23 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   );
 }
 
+const FALLBACK_MENUS: PortedMenu[] = [
+  { id: "10", key: "identitas", label: "Data Identitas", path: "/identitas", icon: "id-card" },
+];
+
+function resolveNavIcon(icon: string): "id-card" {
+  switch (icon) {
+    case "id-card":
+    default:
+      return "id-card";
+  }
+}
+
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { user, legacyBase } = loaderData;
+  const { user, legacyBase, hasLegacyHost, menus } = loaderData;
   const navigation = useNavigation();
   const pending = navigation.state !== "idle";
+  const navMenus = menus && menus.length > 0 ? menus : FALLBACK_MENUS;
 
   return (
     <div className="min-h-screen app-wrapper" aria-busy={pending}>
@@ -130,13 +146,21 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         <nav className="primary-nav" aria-label="Navigasi utama">
           <div className="primary-nav-inner">
             <div className="primary-nav-links">
-              <Link to="/identitas" className="nav-item nav-item-active">
-                <Icon name="id-card" size={14} />
-                <span>Data Identitas</span>
-              </Link>
-              <a href={legacyBase} className="nav-item">
-                <span>Menu lama</span>
-              </a>
+              {navMenus.map((item) => (
+                <NavLink
+                  key={item.id}
+                  to={item.path}
+                  className={({ isActive }) => `nav-item${isActive ? " nav-item-active" : ""}`}
+                >
+                  <Icon name={resolveNavIcon(item.icon)} size={14} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+              {hasLegacyHost !== false && legacyBase ? (
+                <a href={legacyBase} className="nav-item">
+                  <span>Menu lama</span>
+                </a>
+              ) : null}
             </div>
             <span className={`nav-status${pending ? " is-pending" : ""}`}>
               <span className="live-dot" />

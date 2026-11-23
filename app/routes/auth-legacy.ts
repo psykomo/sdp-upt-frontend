@@ -27,14 +27,36 @@ async function handOver(request: Request, token: string | null, dest: string) {
 
 function takeHandoverToken(request: Request): { token: string | null; dest: string } {
   const url = new URL(request.url);
-  let token = url.searchParams.get("token");
-  let dest = safeReturn(url.searchParams.get("return"));
+  let token: string | null = null;
+  let dest = "/identitas";
+  let hasDest = false;
+
+  if (typeof window !== "undefined" && window.location.hash) {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const hashToken = hashParams.get("token");
+    const hashReturn = hashParams.get("return");
+    if (hashToken) {
+      token = hashToken;
+    }
+    if (hashReturn) {
+      dest = safeReturn(hashReturn);
+      hasDest = true;
+    }
+  }
+
+  if (!token) {
+    token = url.searchParams.get("token");
+  }
+  if (!hasDest && url.searchParams.get("return")) {
+    dest = safeReturn(url.searchParams.get("return"));
+    hasDest = true;
+  }
 
   if (typeof sessionStorage !== "undefined") {
     if (!token) {
       token = sessionStorage.getItem("sdp_handover_token");
     }
-    if (!url.searchParams.get("return")) {
+    if (!hasDest) {
       dest = safeReturn(sessionStorage.getItem("sdp_handover_return"));
     }
     sessionStorage.removeItem("sdp_handover_token");

@@ -1,5 +1,13 @@
 import { data, redirect } from "react-router";
 
+export type SupervisorGrant = {
+  grant: string;
+  officerId: string;
+  resourceKey: string;
+  supervisorName: string;
+  expiresAt?: number;
+};
+
 export type HapusGrant = {
   grant: string;
   officerId: string;
@@ -9,29 +17,29 @@ export type HapusGrant = {
 };
 
 const HAPUS_GRANT_KEY = "sdp_hapus_grant";
-const HAPUS_GRANT_TTL_MS = 10 * 60 * 1000;
+const SUPERVISOR_GRANTS_KEY = "sdp_supervisor_grants";
+const SUPERVISOR_GRANT_TTL_MS = 10 * 60 * 1000;
 
-const PUBLIC_LEGACY_HOST = "sdp.caripasal.com";
-const PUBLIC_API_HOST = "sdp-api.caripasal.com";
-const PUBLIC_FRONTEND_HOST = "sdp-front.caripasal.com";
-
-export function getHapusGrant(): HapusGrant | null {
+export function getSupervisorGrant(scopeKey: string): SupervisorGrant | null {
   if (typeof sessionStorage === "undefined") {
     return null;
   }
 
   try {
-    const raw = sessionStorage.getItem(HAPUS_GRANT_KEY);
+    const raw = sessionStorage.getItem(SUPERVISOR_GRANTS_KEY);
     if (!raw) {
       return null;
     }
-    const value = JSON.parse(raw) as HapusGrant;
-    if (!value.grant || !value.officerId || !value.nomorInduk) {
-      sessionStorage.removeItem(HAPUS_GRANT_KEY);
+    const map = JSON.parse(raw) as Record<string, SupervisorGrant>;
+    const value = map[scopeKey];
+    if (!value || !value.grant || !value.officerId || !value.resourceKey) {
+      delete map[scopeKey];
+      sessionStorage.setItem(SUPERVISOR_GRANTS_KEY, JSON.stringify(map));
       return null;
     }
     if (value.expiresAt && Date.now() > value.expiresAt) {
-      sessionStorage.removeItem(HAPUS_GRANT_KEY);
+      delete map[scopeKey];
+      sessionStorage.setItem(SUPERVISOR_GRANTS_KEY, JSON.stringify(map));
       return null;
     }
     return value;
@@ -40,22 +48,110 @@ export function getHapusGrant(): HapusGrant | null {
   }
 }
 
-export function setHapusGrant(grant: Omit<HapusGrant, "expiresAt">): void {
+export function setSupervisorGrant(
+  scopeKey: string,
+  grant: Omit<SupervisorGrant, "expiresAt">,
+): void {
   if (typeof sessionStorage === "undefined") {
     return;
   }
-  sessionStorage.setItem(
-    HAPUS_GRANT_KEY,
-    JSON.stringify({ ...grant, expiresAt: Date.now() + HAPUS_GRANT_TTL_MS }),
-  );
+  let map: Record<string, SupervisorGrant> = {};
+  try {
+    const raw = sessionStorage.getItem(SUPERVISOR_GRANTS_KEY);
+    if (raw) {
+      map = JSON.parse(raw) as Record<string, SupervisorGrant>;
+    }
+  } catch {
+    map = {};
+  }
+  map[scopeKey] = { ...grant, expiresAt: Date.now() + SUPERVISOR_GRANT_TTL_MS };
+  sessionStorage.setItem(SUPERVISOR_GRANTS_KEY, JSON.stringify(map));
+}
+
+export function clearSupervisorGrant(scopeKey?: string): void {
+  if (typeof sessionStorage === "undefined") {
+    return;
+  }
+  if (!scopeKey) {
+    sessionStorage.removeItem(SUPERVISOR_GRANTS_KEY);
+    return;
+  }
+  try {
+    const raw = sessionStorage.getItem(SUPERVISOR_GRANTS_KEY);
+    if (!raw) {
+      return;
+    }
+    const map = JSON.parse(raw) as Record<string, SupervisorGrant>;
+    delete map[scopeKey];
+    sessionStorage.setItem(SUPERVISOR_GRANTS_KEY, JSON.stringify(map));
+  } catch {
+    sessionStorage.removeItem(SUPERVISOR_GRANTS_KEY);
+  }
+}
+
+export function getHapusGrant(): HapusGrant | null {
+  if (typeof sessionStorage === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = sessionStorage.getItem(HAPUS_GRANT_KEY);
+    if (raw) {
+      const value = JSON.parse(raw) as HapusGrant;
+      if (!value.grant || !value.officerId || !value.nomorInduk) {
+        sessionStorage.removeItem(HAPUS_GRANT_KEY);
+        return null;
+      }
+      if (value.expiresAt && Date.now() > value.expiresAt) {
+        sessionStorage.removeItem(HAPUS_GRANT_KEY);
+        return null;
+      }
+      return value;
+    }
+  } catch {
+    return null;
+  }
+
+  const scoped = getSupervisorGrant("10:delete");
+  if (!scoped) {
+    return null;
+  }
+
+  return {
+    grant: scoped.grant,
+    officerId: scoped.officerId,
+    nomorInduk: scoped.resourceKey,
+    supervisorName: scoped.supervisorName,
+    expiresAt: scoped.expiresAt,
+  };
+}
+
+export function setHapusGrant(grant: Omit<HapusGrant, "expiresAt">): void {
+  setSupervisorGrant("10:delete", {
+    grant: grant.grant,
+    officerId: grant.officerId,
+    resourceKey: grant.nomorInduk,
+    supervisorName: grant.supervisorName,
+  });
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.setItem(
+      HAPUS_GRANT_KEY,
+      JSON.stringify({ ...grant, expiresAt: Date.now() + SUPERVISOR_GRANT_TTL_MS }),
+    );
+  }
 }
 
 export function clearHapusGrant(): void {
+  clearSupervisorGrant("10:delete");
   if (typeof sessionStorage === "undefined") {
     return;
   }
   sessionStorage.removeItem(HAPUS_GRANT_KEY);
 }
+
+const PUBLIC_LEGACY_HOST = "sdp.caripasal.com";
+const PUBLIC_API_HOST = "sdp-api.caripasal.com";
+const PUBLIC_FRONTEND_HOST = "sdp-front.caripasal.com";
 
 function requestHost(request?: Request): string {
   const raw = request
@@ -400,6 +496,8 @@ export type LoginOptions = {
   tenancyMode: string;
   requiresTenantId: boolean;
   requiresWorkingUptId: boolean;
+  hasLegacyHost: boolean;
+  legacyBase?: string;
 };
 
 export async function fetchLoginOptions(request?: Request): Promise<LoginOptions> {
@@ -411,24 +509,41 @@ export async function fetchLoginOptions(request?: Request): Promise<LoginOptions
   });
 
   if (!res.ok) {
-    return { tenancyMode: "single", requiresTenantId: false, requiresWorkingUptId: false };
+    return {
+      tenancyMode: "single",
+      requiresTenantId: false,
+      requiresWorkingUptId: false,
+      hasLegacyHost: true,
+    };
   }
 
   let body: { ok?: boolean; data?: LoginOptions };
   try {
     body = (await res.json()) as { ok?: boolean; data?: LoginOptions };
   } catch {
-    return { tenancyMode: "single", requiresTenantId: false, requiresWorkingUptId: false };
+    return {
+      tenancyMode: "single",
+      requiresTenantId: false,
+      requiresWorkingUptId: false,
+      hasLegacyHost: true,
+    };
   }
 
   if (!body.ok || !body.data) {
-    return { tenancyMode: "single", requiresTenantId: false, requiresWorkingUptId: false };
+    return {
+      tenancyMode: "single",
+      requiresTenantId: false,
+      requiresWorkingUptId: false,
+      hasLegacyHost: true,
+    };
   }
 
   return {
     tenancyMode: body.data.tenancyMode ?? "single",
     requiresTenantId: body.data.requiresTenantId ?? false,
     requiresWorkingUptId: body.data.requiresWorkingUptId ?? false,
+    hasLegacyHost: body.data.hasLegacyHost ?? true,
+    legacyBase: body.data.legacyBase,
   };
 }
 
@@ -505,6 +620,7 @@ export async function acceptLegacyToken(token: string, request?: Request): Promi
 
 export async function apiLogout(request?: Request): Promise<void> {
   clearHapusGrant();
+  clearSupervisorGrant();
   try {
     await fetchApi(`${apiBase()}/api/v1/auth/logout`, {
       method: "POST",
