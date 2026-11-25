@@ -19,12 +19,14 @@ type Me = {
     sessionFilterKanwilId?: string | null;
   };
   hasLegacyHost?: boolean;
+  legacyBase?: string;
   menus?: PortedMenu[];
 };
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const me = await apiGet<Me>("/auth/me", request);
-  return { ...me, legacyBase: publicLegacyBase(request) };
+  const legacyBase = me.hasLegacyHost === false ? "" : (me.legacyBase || publicLegacyBase(request));
+  return { ...me, legacyBase };
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

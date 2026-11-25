@@ -7,20 +7,22 @@ async function leave(request: Request) {
 
   const from = new URL(request.url).searchParams.get("from");
   if (typeof window !== "undefined") {
+    let options: Awaited<ReturnType<typeof fetchLoginOptions>> | null = null;
+    try {
+      options = await fetchLoginOptions(request);
+    } catch {
+      // API unreachable during logout; fall back below.
+    }
+
+    const legacyTarget = options?.legacyBase || publicLegacyBase(request);
     if (from === "legacy") {
-      window.location.replace(`${publicLegacyBase(request)}/Welcome`);
+      window.location.replace(`${legacyTarget}/Welcome`);
       return new Promise<never>(() => {});
     }
 
-    try {
-      const options = await fetchLoginOptions(request);
-      if (options.hasLegacyHost) {
-        const legacyTarget = options.legacyBase || publicLegacyBase(request);
-        window.location.replace(`${legacyTarget}/Login/logOut?from=spa`);
-        return new Promise<never>(() => {});
-      }
-    } catch {
-      // API unreachable during logout; fall back to SPA /login.
+    if (options?.hasLegacyHost && legacyTarget) {
+      window.location.replace(`${legacyTarget}/Login/logOut?from=spa`);
+      return new Promise<never>(() => {});
     }
   }
 

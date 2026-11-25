@@ -60,6 +60,7 @@ type SearchResult = {
   };
   access: Access;
   columns: string[];
+  legacyBase?: string;
   links?: { tambah: string };
 };
 
@@ -143,7 +144,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     result,
     agama: agama.items,
     pendidikan: pendidikan.items,
-    legacyBase: publicLegacyBase(request),
+    legacyBase: result.legacyBase ?? publicLegacyBase(request),
   };
 }
 
@@ -1013,16 +1014,18 @@ function AnalisaDossier({
             </div>
           </div>
 
-          <div className="dossier-print-group">
-            <span className="print-group-title">Modul Terkait</span>
-            <a
-              href={`${legacyBase}/ManajemenIdentitas/catatKunjungan/${encodeURIComponent(item.nomorInduk)}`}
-              className="btn btn-secondary btn-sm btn-block"
-            >
-              <Icon name="users" size={13} />
-              <span>Catat Kunjungan</span>
-            </a>
-          </div>
+          {legacyBase ? (
+            <div className="dossier-print-group">
+              <span className="print-group-title">Modul Terkait</span>
+              <a
+                href={`${legacyBase}/ManajemenIdentitas/catatKunjungan/${encodeURIComponent(item.nomorInduk)}`}
+                className="btn btn-secondary btn-sm btn-block"
+              >
+                <Icon name="users" size={13} />
+                <span>Catat Kunjungan</span>
+              </a>
+            </div>
+          ) : null}
 
           {access.canPrint ? (
             <div className="dossier-print-group">
